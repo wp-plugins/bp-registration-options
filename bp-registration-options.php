@@ -352,7 +352,7 @@ function bprwg_options() {
     } ?>
     </form>
     <br />
-    For support please visit the <a target="_blank" href="http://webdevstudios.com/support/forum/bp-registration-options/">BP-Registration-Options Plugin Support Forum</a> | Version by <a href="http://webdevstudios.com">WebDevStudios.com</a><br />
+    For support please visit the <a target="_blank" href="http://webdevstudios.com/support/forum/buddypress-registration-options/">BP-Registration-Options Plugin Support Forum</a> | Version by <a href="http://webdevstudios.com">WebDevStudios.com</a><br />
     <a target="_blank" href="http://webdevstudios.com/support/wordpress-plugins/">Check out our other plugins</a> and follow <a target="_blank" href="http://twitter.com/webdevstudios">@WebDevStudios</a> and <a target="_blank" href="http://twitter.com/bmess">@bmess</a> on Twitter
 <?php }
 //ACCOUNT ACTIVATION ACTIONS*******************************************************************

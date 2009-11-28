@@ -16,7 +16,7 @@ For more information check out:
 
 <a href=http://webdevstudios.com/support/wordpress-plugins/buddypress-registration-options/>BP-Registration-Options Page</a>
 
-<a href=http://webdevstudios.com/support/forum/bp-registration-options/>BP-Registration-Options Support Forum</a>
+<a href=http://webdevstudios.com/support/forum/buddypress-registration-options/>BP-Registration-Options Support Forum</a>
 
 == Screenshots ==
 
