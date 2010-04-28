@@ -3,8 +3,8 @@ Contributors: messenlehner
 Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=3084056
 Tags: buddypress, wpmu, plugin, admin, moderation, registration, groups, blogs, new members
 Requires at least: 2.6
-Tested up to: 2.8.6
-Stable tag: 1.0
+Tested up to: 2.9.2
+Stable tag: 1.2
 
 Moderate new BuddyPress members, set BuddyPress Groups or WPMU blogs new members can join on the registration page.
 
@@ -32,6 +32,9 @@ For more information check out:
 
 = 1.0 =
 * First official release
+
+= 1.2 =
+* Updated plugin to work with BuddyPress 1.2
 
 == Installation ==
 

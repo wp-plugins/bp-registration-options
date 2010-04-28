@@ -1,16 +1,13 @@
 <?php
-/*
-Plugin Name: BP-Registration-Options
-Plugin URI: http://webdevstudios.com/support/wordpress-plugins/buddypress-registration-options/
-Description: BuddyPress plugin that allows for new member moderation, if moderation is switched on any new members will be blocked from interacting with any buddypress elements (except editing their own profile and uploading their avatar) and will not be listed in any directory until an admin approves or denies their account. Plugin also allows new members to join one or more predefined groups or blogs at registration.
-Version: 1.0
-Author: Brian Messenlehner of WebDevStudios.com
-Author URI: http://webdevstudios.com/about/brian-messenlehner/
-*/
+add_action('admin_menu', 'bprwg_menu',15);
 
-add_action('admin_menu', 'bprwg_menu');
 function bprwg_menu() {
-  add_options_page('BP Registration Options', 'BP Registration Options', 8, __FILE__, 'bprwg_options');
+  	if (!is_site_admin()){
+		return false;
+	}
+	
+	add_submenu_page('bp-general-settings','Registration Options','Registration Options', 'manage-registration-options', 'bp-registration-options/bp-registration-options.php', 'bprwg_options');
+  
 }
 //ADMIN SETTINGS PAGE
 function bprwg_options() {
@@ -39,7 +36,9 @@ function bprwg_options() {
 		$bp_groups_str = implode(",", $bp_groups);
 		update_option('bprwg_groups', $bp_groups_str);
 		$bp_blogs=$_POST['bp_blogs'];
-		$bp_blogs_str = implode(",", $bp_blogs);
+		if($bp_blogs!=""){
+			$bp_blogs_str = implode(",", $bp_blogs);
+		}
 		update_option('bprwg_blogs', $bp_blogs_str);
 		$bp_moderate=$_POST['bp_moderate'];
 		update_option('bprwg_moderate', $bp_moderate);
@@ -56,9 +55,13 @@ function bprwg_options() {
 		delete_option('bprwg_approved_message');
 		delete_option('bprwg_denied_message');
 	}
+	//Menu
+	$view=$_GET['view'];?>
+	<a <?php if ($view==""){?>style="font-weight:bold;"<?php } ?> href="<?php echo add_query_arg ('view', '');?>">General Settings</a><!-- |
+        <a <?php if ($view=="mapping"){?>style="font-weight:bold;"<?php } ?> href="<?php echo add_query_arg ('view', 'mapping');?>">WP Blog/BP Group Mapping</a>-->
+	<?php 
 	//ADMIN MODERATION ACTION*********************************************
 	if($bp_moderate=="yes"){
-		$view=$_GET['view'];
 		//Moderation Actions*******************************************
 		if ($view=="members" && $_POST['Moderate']!=""){
 			$moderate_action=$_POST['Moderate'];
@@ -77,13 +80,13 @@ function bprwg_options() {
 					if ($groups!=""){
 						$group_email="";
 						$groups="00".$groups;
-						$sql="select a.id,a.name,b.slug from ".$iprefix."bp_groups a, ".$iprefix."bp_groups_members b where a.id=b.group_id and b.user_id=$userid and a.id in (".$groups.") and a.status in ('semi','private') and b.is_confirmed=0";
-						$rs2 = mysql_query($sql);
-						if (mysql_num_rows($rs2) > 0) {
-							while ($r2 = mysql_fetch_assoc($rs2)) {
-								$group_id = $r2['id'];
-								$group_name = $r2['name'];
-								$group_slug = $r2['slug'];
+
+						$db_result = $wpdb->get_results( "select a.id,a.name,b.slug from ".$iprefix."bp_groups a, ".$iprefix."bp_groups_members b where a.id=b.group_id and b.user_id=$userid and a.id in (".$groups.") and a.status in ('semi','private') and b.is_confirmed=0" );
+						if ( count( $db_result ) > 0 ) {
+							foreach( $db_result as $the_db_result ) {								
+								$group_id = $the_db_result->id;
+								$group_name = $the_db_result->name;
+								$group_slug = $the_db_result->slug;
 								$group_radio=$_POST["usergroup_".$userid."_".$group_id];
 								if ($group_radio=="approve"){
 									$sql="update ".$iprefix."bp_groups_members set is_confirmed=1 where group_id=$group_id and user_id=$userid";
@@ -122,7 +125,7 @@ function bprwg_options() {
 					$username=$user_info->user_login;
 					$useremail=$user_info->user_email;
 					update_usermeta($userid, 'bprwg_status', 'denied');
-					//wp_delete_user($userid);
+					wp_delete_user($userid);
 					//email member with custom message
 					$denied_message=get_option('bprwg_denied_message');
 					$the_email=$denied_message;
@@ -134,14 +137,15 @@ function bprwg_options() {
 				echo "<div id=message class=updated fade>Please check at least 1 checkbox before pressing an action button!</div>";
 			}
 		}
-		$sql="Select a.* from ".$iprefix."users a LEFT OUTER JOIN ".$iprefix."usermeta b on a.ID=b.user_id where b.meta_key='bprwg_status' and meta_value<>'approved' and meta_value<>'denied' order by a.ID";
-		$rs = mysql_query($sql);
-		$members_count=mysql_num_rows($rs);?>
-    	<a <?php if ($view==""){?>style="font-weight:bold;"<?php } ?> href="<?php echo add_query_arg ('view', '');?>">Settings</a> |
+
+		$db_result_u = $wpdb->get_results( "Select a.* from ".$iprefix."users a LEFT OUTER JOIN ".$iprefix."usermeta b on a.ID=b.user_id where b.meta_key='bprwg_status' and meta_value<>'approved' and meta_value<>'denied' order by a.ID" );
+		$members_count = count( $db_result_u );
+?>
+    	 |
         <a <?php if ($view=="members"){?>style="font-weight:bold;"<?php } ?> href="<?php echo add_query_arg ('view', 'members');?>">New Member Requests (<?php echo $members_count;?>)</a>
-        <br /><br />
     <?php }
 //ADMIN SETTINGS PAGE FORM*********************************************?>
+    <br /><br />
     <form name="bpro" method="post">
     <?php
     if ( function_exists('wp_nonce_field') ) wp_nonce_field('cro_check');
@@ -209,52 +213,51 @@ function bprwg_options() {
         <td valign="top">
             <table>
             <tr>
-                <td><strong>Groups:</strong></td>
+                <td><strong>BP Groups:</strong></td>
             </tr>
             <?php //*fix wp_
-            $sql = "SELECT id,name FROM ".$iprefix."bp_groups order by name";
-            $rs = mysql_query($sql);
-            if (mysql_num_rows($rs) > 0) {
-                while ($r = mysql_fetch_assoc($rs)) {
-                    $group_id = $r['id'];
-                    $group_name=$r['name'];
-                    ?>
+            
+            $db_result = $wpdb->get_results( "SELECT id,name FROM ".$iprefix."bp_groups where name <>'' order by name" );
+            if ( count( $db_result ) > 0 ) {
+				foreach( $db_result as $the_db_result ) {
+?>
                     <tr>
                         <td>
-                            <input type="checkbox" name="bp_groups[]" value="<?php echo $group_id;?>"  <?php if(in_array($group_id, $bp_groups)){?>checked<?php }?>/>&nbsp;<?php echo $group_name;?>
+                            <input type="checkbox" name="bp_groups[]" value="<?php echo $the_db_result->id;?>"  <?php if(in_array($the_db_result->id, $bp_groups)){?>checked<?php }?>/>&nbsp;<?php echo $the_db_result->name;?>
                         </td>
                     </tr>
-                    <?php
-                }
-            }
+<?php
+				}
+			}
+
             ?>
             </table>
         </td>
         <td valign="top">
             <table>
             <tr>
-                <td><strong>Blogs:</strong></td>
+                <td><strong>WP Blogs:</strong></td>
             </tr>
             <?php
-            $sql = "SELECT blog_id,path FROM ".$iprefix."blogs order by path";
-            $rs = mysql_query($sql);
-            if (mysql_num_rows($rs) > 0) {
-                while ($r = mysql_fetch_assoc($rs)) {
-                    $blog_id = $r['blog_id'];
-                    $sql = "SELECT option_value FROM ".$iprefix.$blog_id."_options where option_name='blogname'";
-                    $rs2 = mysql_query($sql);
-                    if (mysql_num_rows($rs2) > 0) {
-                        while ($r2 = mysql_fetch_assoc($rs2)) {
-                            $blog_name=$r2['option_value'];
-                        }
-                    }?>
+            
+            $db_result = $wpdb->get_results( "SELECT blog_id,path FROM ".$iprefix."blogs order by path" );
+            if ( count( $db_result ) > 0 ) {
+				foreach( $db_result as $the_db_result ) {
+										
+					$db_result_n = $wpdb->get_results( "SELECT option_value FROM ". $iprefix . $the_db_result->blog_id . "_options where option_name='blogname'" );
+					if ( count( $db_result_n ) > 0 ) {
+						foreach( $db_result_n as $the_db_result_n ) {
+?>
                     <tr>
                          <td>
-                            <input type="checkbox" name="bp_blogs[]" value="<?php echo $blog_id;?>"  <?php if(in_array($blog_id, $bp_blogs)){?>checked<?php }?>/>&nbsp;<?php echo $blog_name;?>
+                            <input type="checkbox" name="bp_blogs[]" value="<?php echo $the_db_result->blog_id;?>" <?php if($bp_blogs!=""){if( in_array( $the_db_result->blog_id, $bp_blogs) ) {?>checked<?php }} ?>/>&nbsp;<?php echo $the_db_result_n->option_value;?>
                         </td>
                     </tr>
-                    <?php
-                }
+<?php	
+						}
+					}                 
+				}
+            
             } ?>
             </table>
         </td>
@@ -262,7 +265,52 @@ function bprwg_options() {
         </table>
         <br />
         <input type="submit" name="Save" value="Save Options" />
-    <?php }else{
+    <?php }elseif($view=="mapping"){ ?>
+		<!--You can map WP Blogs to BP Groups so when a new member joins one they are automatically tied to the other. An example would be if you map Group A to Blog A, when a user joins Group A at registration they will automatically join Blog A or if a user joins Blog A they will automatically join Group A.-->
+        Map blogs to blogs and/or groups and map groups to groups and/or blogs.<br /><br />
+        <table>
+        <tr>
+        	<td><strong>If some one joins:</strong></td>
+            <td></td>
+            <td><strong>They will automatically join:</strong></td>
+        </tr>
+        <tr>
+        	<td>
+                <select name="user_join">
+                	<?php //groups
+					$db_result = $wpdb->get_results( "SELECT id,name FROM ".$iprefix."bp_groups order by name" );
+					if ( count( $db_result ) > 0 ) {
+						foreach( $db_result as $the_db_result ) {?>
+							<option value="<?php echo $the_db_result->id;?>">BP Group - <?php echo $the_db_result->name;?>
+						<?php
+						}
+					}
+					//blogs
+					$db_result = $wpdb->get_results( "SELECT blog_id,path FROM ".$iprefix."blogs order by path" );
+					if ( count( $db_result ) > 0 ) {
+						foreach( $db_result as $the_db_result ) {
+							$db_result_n = $wpdb->get_results( "SELECT option_value FROM ". $iprefix . $the_db_result->blog_id . "_options where option_name='blogname'" );
+							if ( count( $db_result_n ) > 0 ) {
+								foreach( $db_result_n as $the_db_result_n ) {?>
+									<option type="checkbox" value="<?php echo $the_db_result->blog_id;?>">WP Blog - <?php echo $the_db_result_n->option_value;?>
+								<?php	
+								}
+							}                 
+						}
+					
+					}?>
+                </select>
+            </td>
+            <td>
+            	<select name="code_join">
+            
+            	</select>
+            </td>
+        </tr>
+        </table>
+        
+        
+	<?php }else{
 		///New members requests*********************************************************
 		if ($members_count > 0) { ?>
             Please approve or deny the following new members:
@@ -304,43 +352,51 @@ function bprwg_options() {
             	<td><strong>Email</strong></td>
                 <td><strong>Created</strong></td>
             </tr>
-			<?php while ($r = mysql_fetch_assoc($rs)) {
-				$user_id=$r['ID'];
-				$userlink=bp_core_get_userurl($user_id);
+<?php
+
+			// We reuse the query from line 138
+			foreach( $db_result_u as $the_db_result ) {	
+				$user_id=$the_db_result->ID;
+				//$userlink=bp_core_get_userurl($user_id);
 				$username=bp_core_get_user_displayname($user_id, true );
-				$userpic=bp_core_get_avatar( $user_id, 1 );
-				$useremail=$r['user_email'];
-				$userregistered=$r['user_registered'];
+				//$userpic=bp_core_get_avatar( $user_id, 1 );
+				$useremail=$the_db_result->user_email;
+				$userregistered=$the_db_result->user_registered;
 				if($bgc==""){
 					$bgc="#ffffff";
 				}else{
 					$bgc="";
-				}?>
+				}
+?>
 				<tr style="background:<?php echo $bgc;?> !important;">
                     <td valign="top"><?php //echo $user_id; ?><input type="checkbox" id="bp_member_check" name="bp_member_check[]" value="<?php echo $user_id; ?>"  /></td>
                     <td valign="top"><a target="_blank" href="<?php echo $userlink; ?>"><?php echo $userpic?></a></td>
                     <td valign="top"><strong><?php echo $username?></strong><br /><a target="_blank" href="<?php echo $userlink; ?>">view profile</a></td>
                     <?php if ($groups!=""){ ?>
                     <td valign="top">
-                    	<?php $sql="select a.id,a.name from ".$iprefix."bp_groups a, ".$iprefix."bp_groups_members b where a.id=b.group_id and b.user_id=$user_id and a.id in (".$groups.") and a.status in ('semi','private') and b.is_confirmed=0";
-						$rs2 = mysql_query($sql);
-						if (mysql_num_rows($rs2) > 0) {
-							while ($r2 = mysql_fetch_assoc($rs2)) {
-								$group_id = $r2['id'];
-								$group_name = $r2['name'];
-								?>
+<?php 
+
+						$db_result = $wpdb->get_results( "select a.id,a.name from ".$iprefix."bp_groups a, ".$iprefix."bp_groups_members b where a.id=b.group_id and b.user_id=$user_id and a.id in (".$groups.") and a.status in ('semi','private') and b.is_confirmed=0" );
+						if ( count( $db_result ) > 0 ) {
+							foreach( $db_result as $the_db_result ) {
+								$group_id = $the_db_result->id;
+								$group_name = $the_db_result->name;							
+?>
                     			[<input checked="checked" type="radio" name="usergroup_<?php echo $user_id; ?>_<?php echo $group_id; ?>" value="approve" />Approve<input type="radio" name="usergroup_<?php echo $user_id; ?>_<?php echo $group_id; ?>" value="deny" />Deny<input type="radio" name="usergroup_<?php echo $user_id; ?>_<?php echo $group_id; ?>" value="ban" />Ban] <strong><?php echo $group_name; ?></strong><br />
-                    		<?php }
-						}else{
+<?php							
+							}
+						} else {
 							echo "No private groups requested.";
-						}?>
+						}
+
+?>
                     </td>
                     <?php } ?>
                     <td valign="top"><a href="mailto:<?php echo $useremail;?>"><?php echo $useremail;?></a></td>
                     <td valign="top"><?php echo $userregistered;?></td>
 
                 </tr>
-            <?php } ?>
+		<?php } ?>
             </table>
             
 			<br />
@@ -373,14 +429,15 @@ function bprwg_update_profile(){
 		$key=$_GET['key'];
 		if ($key!=""){
 			if ( bp_account_was_activated() ) :
-				$sql="select ID from ".$iprefix."users where user_activation_key='$key'";
-				$rs = mysql_query($sql);
-				if (mysql_num_rows($rs) > 0) {
-					while ($r = mysql_fetch_assoc($rs)) {
-						$userid=$r['ID'];
-						$from_reg="yes";
+				
+				$db_result = $wpdb->get_results( "select ID from ".$iprefix."users where user_activation_key='$key'" );
+				if ( count( $db_result ) > 0 ) {
+					foreach( $db_result as $the_db_result ) {
+						$userid = $the_db_result->ID;
+						$from_reg = 'yes';					
 					}
 				}
+
 			endif;
 		}
 	}
@@ -397,14 +454,15 @@ function bprwg_update_profile(){
 				$arr_userblogs = explode(",", $userblogs);
 				for($i = 0; $i < count($arr_userblogs); $i++){
 					$blog_id = $arr_userblogs[$i];
-					$sql = "SELECT option_value FROM ".$iprefix.$blog_id."_options where option_name='default_role'";
-					$rs = mysql_query($sql);
-					if (mysql_num_rows($rs) > 0) {
-						while ($r = mysql_fetch_assoc($rs)) {
-							$default_role=$r['option_value'];
-							add_user_to_blog($blog_id, $userid, $default_role);
+					
+					$db_result = $wpdb->get_results( "SELECT option_value FROM ".$iprefix.$blog_id."_options where option_name='default_role'" );
+					if ( count( $db_result ) > 0 ) {
+						foreach( $db_result as $the_db_result ) {
+							$default_role = $the_db_result->option_value;
+							add_user_to_blog($blog_id, $userid, $default_role);						
 						}
 					}
+					
 				}
 			}
 			delete_option('bprwg_newmember_blogs_'.$useremail);
@@ -413,32 +471,34 @@ function bprwg_update_profile(){
 		$bp_groups=get_option('bprwg_groups');
 		if($bp_groups!=""){
 			$usergroups=get_option('bprwg_newmember_groups_'.$useremail);
-			$sql="select id,status,name,slug from ".$iprefix."bp_groups where id in ($usergroups) order by name";
-			$rs = mysql_query($sql);
-			if (mysql_num_rows($rs) > 0) {
-				while ($r = mysql_fetch_assoc($rs)) {
-					$id = $r['id'];
-					$status = $r['status'];
-					$name = $r['name'];
-					$slug = $r['slug'];
-					if($status=="semi" || $status=="private"){
+
+            $db_result = $wpdb->get_results( "select id,status,name,slug from ".$iprefix."bp_groups where id in ($usergroups) order by name" );
+            if ( count( $db_result ) > 0 ) {
+				foreach( $db_result as $the_db_result ) {
+					
+					if( $the_db_result->status == 'semi' || $the_db_result->status == 'private' ) {
 						$is_confirmed=0;
-					}else{
+					} else {
 						$is_confirmed=1;
 					}
 					//if not already in group then add to group
-					$sql="select id from ".$iprefix."bp_groups_members where group_id=$id and user_id=$userid";
-					$rs2 = mysql_query($sql);
-					if (mysql_num_rows($rs2) == 0) {
+
+
+					$db_result_n = $wpdb->get_results( 'select id from ' . $iprefix . 'bp_groups_members where group_id=' . $the_db_result->id . ' and user_id=' . $userid );
+					if ( count( $db_result_n ) == 0 ) {
 						//add memebr to group and send group confirmation if need be
-						$sql="insert into ".$iprefix."bp_groups_members(group_id,user_id,inviter_id,user_title,date_modified,comments,is_confirmed)values($id,$userid,0,'',now(),'',$is_confirmed)";
-						$wpdb->query($wpdb->prepare($sql));
+						$wpdb->query( $wpdb->prepare( 
+							'insert into '. $iprefix . "bp_groups_members( group_id, user_id, inviter_id, user_title, date_modified, comments, is_confirmed ) values ( $the_db_result->id, $userid, 0, '', now(), '', $is_confirmed )"
+						) );
 						if ($is_confirmed==0){
-							$group_email=$group_email.$username." wants to join the group [".$name."] - ".get_bloginfo("url")."/groups/".$slug."/admin/membership-requests.\n\n";
+							$group_email=$group_email.$username." wants to join the group [".$the_db_result->name."] - ".get_bloginfo("url")."/groups/".$the_db_result->slug."/admin/membership-requests.\n\n";
 						}
 					}
+
+				
 				}
 			}
+			
 			delete_option('bprwg_newmember_groups_'.$useremail);
 		}
 		//for member moderation after member activation...
@@ -513,8 +573,84 @@ function bprwg_approve_message(){
 		}
 	}
 }
+
+//INIT***************************************
 function bprwg_redirect(){
 	global $wpdb;
+	
+	//add/remove users to/from blogs
+	if($_POST['Update_Blog']!=""){
+		global $bp, $blog_id, $user_id;
+		$userid =  $bp->loggedin_user->id ;
+		if($userid!=""){
+			$bp_blogs=get_option('bprwg_blogs');
+			if($bp_blogs!=""){
+				$bp_blogs_form=$_POST['bprwg_blogs'];
+				//echo "bp_blogs_form:".$bp_blogs_form;
+				$arr_bp_blogs = explode(",", $bp_blogs);
+				$iprefix=$wpdb->prefix;
+				$iprefix=str_replace("_".$blog_id,"",$iprefix);
+				for($i = 0; $i < count($arr_bp_blogs); $i++){
+					$iblog_id = $arr_bp_blogs[$i];
+					//echo $iblog_id."<br>";
+					if($bp_blogs_form!=""){
+						//if checked
+						if(in_array($iblog_id, $bp_blogs_form)){
+							//echo $iblog_id." checked<br>";
+							//if already a member skip, else add
+							$sql="SELECT meta_value FROM ".$iprefix."usermeta where meta_key='wp_".$iblog_id."_capabilities' and user_id=".$userid."";
+							$db_result = $wpdb->get_results($sql);
+							if ( count( $db_result ) > 0 ) {
+								//echo "already joined";
+							}else{
+								$sql="SELECT option_value FROM ".$iprefix.$iblog_id."_options where option_name='default_role'";
+								//echo $sql."<br>";
+								$db_result = $wpdb->get_results($sql);
+								if ( count( $db_result ) > 0 ) {
+									foreach( $db_result as $the_db_result ) {
+										$default_role = $the_db_result->option_value;
+										//echo "default_role: ".$default_role."<br>";
+										//echo "blog_id: ".$iblog_id."<br>";
+										//echo "userid: ".$userid."<br>";
+										add_user_to_blog($iblog_id, $userid, $default_role);						
+										}
+								}
+							}
+						//if not checked
+						}else{
+							$removethem="yes";
+						}
+					}else{
+						$removethem="yes";
+					}
+					if ($removethem=="yes"){
+						//echo $iblog_id." not checked<br>";
+						$sql="SELECT meta_value FROM ".$iprefix."usermeta where meta_key='wp_".$iblog_id."_capabilities' and user_id=".$userid."";
+						$db_result = $wpdb->get_results($sql);
+						if ( count( $db_result ) > 0 ) {
+							foreach( $db_result as $the_db_result ) {
+								$default_role = $the_db_result->meta_value;
+								//echo $default_role."<br>";
+								if($default_role > 9){
+									//$bprwg_error="?m=10";
+									//echo $bprwg_error."<br>";
+								}else{
+									//echo "Remove blog<br>";
+									//echo "userid:".$userid."<br>";
+									//echo "blog_id:".$iblog_id."<br>";
+									remove_user_from_blog($userid, $iblog_id);
+								}
+							}
+						}
+						$removethem="no";
+					}
+				}
+				echo '<meta http-equiv="refresh" content="0;url='.$bprwg_error.'" />';
+				exit();
+			}
+		}
+	}
+	
 	//redirect from wp-signup.php
 	if(strrpos($_SERVER['REQUEST_URI'],"/wp-signup.php")!== false ){
 		$url=get_option('siteurl')."/register";
@@ -566,15 +702,15 @@ function bprwg_admin_msg() {
 			$blog_id=get_current_site()->id;
 			$iprefix=$wpdb->prefix;
 			$iprefix=str_replace("_".$blog_id,"",$iprefix);
-			$sql="Select a.* from ".$iprefix."users a LEFT OUTER JOIN ".$iprefix."usermeta b on a.ID=b.user_id where b.meta_key='bprwg_status' and meta_value<>'approved' and meta_value<>'denied' order by a.ID";
-			$rs = mysql_query($sql);
-			$members_count=mysql_num_rows($rs);
-			if($members_count>0){
-				if($members_count!=1){
-					$s="s";
+
+            $db_result = $wpdb->get_results( "Select a.* from ".$iprefix."users a LEFT OUTER JOIN ".$iprefix."usermeta b on a.ID=b.user_id where b.meta_key='bprwg_status' and meta_value<>'approved' and meta_value<>'denied' order by a.ID" );
+            if ( count( $db_result ) > 0 ) {
+				if( count( $db_result ) != 1 ){
+					$s = 's';
 				}
-				echo '<div class="error"><p>You have <a href="'.get_bloginfo("url").'/wp-admin/options-general.php?page=bp-registration-options/bp-registration-options.php&view=members"><strong>'.$members_count.' new member request'.$s.'</strong></a> that you need to approve or deny. Please <a href="'.get_bloginfo("url").'/wp-admin/options-general.php?page=bp-registration-options/bp-registration-options.php&view=members">click here</a> to take action.</p></div>';
-			}
+				echo '<div class="error"><p>You have <a href="'.get_bloginfo("url").'/wp-admin/options-general.php?page=bp-registration-options/bp-registration-options.php&view=members"><strong>'.$members_count.' new member request'.$s.'</strong></a> that you need to approve or deny. Please <a href="'.get_bloginfo("url").'/wp-admin/options-general.php?page=bp-registration-options/bp-registration-options.php&view=members">click here</a> to take action.</p></div>';				
+            }
+            
 		}
 	}
 }
@@ -593,34 +729,38 @@ function bprwg_register_page(){
 	//GROUPS
 	$bp_groups=get_option('bprwg_groups');
 	if($bp_groups!=""){
-		$sql = "SELECT id,name FROM ".$iprefix."bp_groups where id in ($bp_groups) order by name";
-		$rs = mysql_query($sql);
-		if (mysql_num_rows($rs) > 0) { ?>
+
+		$db_result = $wpdb->get_results( "SELECT id,name FROM ".$iprefix."bp_groups where id in ($bp_groups) order by name" );
+		if ( count( $db_result ) > 0 ) {
+?>
 			<div id="bp_registration-options-groups">
             <strong>Group(s)</strong><br />
-			<?php while ($r = mysql_fetch_assoc($rs)) {
-				$group_id = $r['id'];
-				$group_name=$r['name'];?>
-                <input type="checkbox" name="bprwg_groups[]" value="<?php echo $group_id; ?>" />&nbsp;<?php echo $group_name; ?>&nbsp;&nbsp;
-            <?php }
-			echo "<br />Check one or more groups you would like to join.</div>";
+			<?php foreach( $db_result as $the_db_result ): ?>
+                <input type="checkbox" name="bprwg_groups[]" value="<?php echo $the_db_result->id; ?>" />&nbsp;<?php echo $the_db_result->name; ?>&nbsp;&nbsp;
+            <?php endforeach; ?>
+			<br />Check one or more groups you would like to join.</div>
+<?php			
 		}
+	
 	}
 	//BLOGS
 	$bp_blogs=get_option('bprwg_blogs');
-	if($bp_blogs!=""){ ?>
+	if($bp_blogs!=""){ 
+?>
     	<div id="bp_registration-options-blogs">
         <strong>Blog(s)</strong><br />
-		<?php $arr_bp_blogs = explode(",", $bp_blogs);
+<?php
+		$arr_bp_blogs = explode(",", $bp_blogs);
 		for($i = 0; $i < count($arr_bp_blogs); $i++){
 			$blog_id = $arr_bp_blogs[$i];
-			$sql = "SELECT option_value FROM ".$iprefix.$blog_id."_options where option_name='blogname'";
-			$rs = mysql_query($sql);
-			if (mysql_num_rows($rs) > 0) {
-				while ($r = mysql_fetch_assoc($rs)) {
-					$blog_name=$r['option_value'];?>
-					<input type="checkbox" name="bprwg_blogs[]" value="<?php echo $blog_id; ?>" />&nbsp;<?php echo $blog_name; ?>&nbsp;&nbsp;
-				<?php }
+
+            $db_result = $wpdb->get_results( "SELECT option_value FROM ".$iprefix.$blog_id."_options where option_name='blogname'" );
+            if ( count( $db_result ) > 0 ) {
+				foreach( $db_result as $the_db_result ) {
+?>
+					<input type="checkbox" name="bprwg_blogs[]" value="<?php echo $blog_id; ?>" />&nbsp;<?php echo $the_db_result->option_value; ?>&nbsp;&nbsp;
+<?php
+				}
 			}
 		}
 		echo "<br />Check one or more blogs you would like to join.</div>";
@@ -636,12 +776,75 @@ function bprwg_register_save(){
 	$iemail=$_POST['signup_email'];
 	//echo $iemail;
 	$bp_groups=$_POST['bprwg_groups'];
-	$bp_groups_str = implode(",", $bp_groups);
-	update_option('bprwg_newmember_groups_'.$iemail, $bp_groups_str);
+	if($bp_groups!=""){
+		$bp_groups_str = implode(",", $bp_groups);
+		update_option('bprwg_newmember_groups_'.$iemail, $bp_groups_str);
+	}
 	$bp_blogs=$_POST['bprwg_blogs'];
-	$bp_blogs_str = implode(",", $bp_blogs);
-	update_option('bprwg_newmember_blogs_'.$iemail, $bp_blogs_str);
+	if($bp_blogs!=""){
+		$bp_blogs_str = implode(",", $bp_blogs);
+		update_option('bprwg_newmember_blogs_'.$iemail, $bp_blogs_str);
+	}
 	//exit();
 }
 add_action( 'bp_complete_signup', 'bprwg_register_save' );
+
+
+//Member Profile Page (ADD BLOGS)*******************************************
+function bprwg_blog_menu(){ 
+	global $wpdb, $bp;
+	if ( bp_is_my_profile() ) :
+		$iprefix=$wpdb->prefix;
+		$iprefix=str_replace("_1","",$iprefix);
+		$bp_blogs=get_option('bprwg_blogs');
+		if($bp_blogs!=""){?>
+			<div id="bprwg_manage_group_blogs">
+			<b>Manage Blog(s):</b>
+			<?php if($_GET['m']!=""){
+				echo "<div id='bprwg_manage_message'>";	
+				if($_GET['m']=="10"){
+					echo "Dude?!?! Your an admin why are you trying to remove yourself from your blogs??? If you really wanna do this use the backend... Ya heard??!?!";
+				}else{
+					echo "Blog(s) updated!";	
+				}
+				echo "</div>";
+			}?>
+            <p>*Check or uncheck the blog(s) you would like to be apart of:</p>
+			<form action="" method="post">
+			<?php //form posts to bprwg_redirect()
+			$userid =  $bp->loggedin_user->id ;
+			$arr_bp_blogs = explode(",", $bp_blogs);
+			for($i = 0; $i < count($arr_bp_blogs); $i++){
+				$blog_id = $arr_bp_blogs[$i];
+				$checked="";
+				$sql="SELECT meta_value FROM ".$iprefix."usermeta where meta_key='wp_".$blog_id."_capabilities' and user_id=".$userid."";
+				//echo $sql."<br>";
+				$db_result = $wpdb->get_results($sql);
+				if ( count( $db_result ) > 0 ) {
+					$checked="checked";
+				}
+				$sql="SELECT option_value FROM ".$iprefix.$blog_id."_options where option_name='blogname'";
+				//echo $sql;
+				$db_result = $wpdb->get_results( $sql );
+				if ( count( $db_result ) > 0 ) {
+					echo "<ul id='bprwg_manage_group_blogs_checks'>";
+					foreach( $db_result as $the_db_result ) {?>
+						<li><input type="checkbox" name="bprwg_blogs[]" value="<?php echo $blog_id; ?>" <?php echo $checked; ?>/>&nbsp;<?php echo $the_db_result->option_value; ?></li>
+					<?php
+					}
+					echo "</ul>";
+				}
+			}
+			?>
+			<input type="submit" name="Update_Blog" value="Update" />
+			</form><br />
+			</div>
+			<?php
+		}
+	endif;
+}
+add_filter( 'bp_before_member_blogs_content', 'bprwg_blog_menu');
+
+
+
 ?>
