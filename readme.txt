@@ -53,16 +53,6 @@ For more information check out:
 
 == Changelog ==
 
-
-
-= 1.0 =
-
-* First official release
-
-= 1.2 =
-
-* Updated plugin to work with BuddyPress 1.2
-
 = 3.0 =
 
 * Updated plugin to work with WP 3.0
@@ -70,6 +60,13 @@ For more information check out:
 * Hide "Person became a registered member" from activity stream if moderation is turned on until person is approved.
 * Added ability to make website a private network where only registered members can view any BuddyPress pages. Certain page exceptions can be made. Visitors are redirected to the registration page.
 
+= 1.2 =
+
+* Updated plugin to work with BuddyPress 1.2
+
+= 1.0 =
+
+* First official release
 
 
 == Installation ==
