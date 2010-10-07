@@ -12,6 +12,7 @@ Tested up to: 3.0
 
 Stable tag: 3.0
 
+Moderate new BuddyPress members, fight BuddyPress spam, set BuddyPress Groups or Blogs/Sites new members can join on the registration page. 
 
 
 == Description ==
