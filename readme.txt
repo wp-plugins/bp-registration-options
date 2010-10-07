@@ -4,7 +4,7 @@ Contributors: Messenlehner
 
 Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=3084056
 
-Tags: buddypress, wpmu, wpms, plugin, admin, moderation, registration, groups, blogs, new members
+Tags: buddypress, wpmu, wpms, plugin, admin, moderation, registration, groups, blogs, new members, buddypress private network
 
 Requires at least: 2.6
 
@@ -21,6 +21,7 @@ Moderate new BuddyPress members, set BuddyPress Groups or WPMU/WPMS blogs/sites 
 == Description ==
 
 Great for stopping spam bots from registering on your BuddyPress website!
+
 
 A WordPress BuddyPress plugin that allows for new member moderation, if moderation is turned on from the admin settings page, any new members will be blocked from interacting with any buddypress elements (except editing their own profile and uploading their avatar) and will not be listed in any directory until an administrator approves or denies their account. This plugin also creates bp profile field checkbox groups on the /register page from checked off groups or blogs in the admin settings section so any new members can join one or more groups or blogs that you specify at registration. If moderation is turned on admins can create custom display messages and email alert messages for approved or denied accounts. When admin approves or denies, custom emails get sent out to new members telling them they were approved or denied.
 
