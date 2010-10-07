@@ -465,8 +465,8 @@ function bprwg_admin_screen() {
 			foreach( $db_result_u as $the_db_result ) {	
 				$user_id=$the_db_result->ID;
 				$author = new BP_Core_User( $user_id );
-				$userpic=$author->avatar;
-				//$userpic=$author->avatar_mini;
+				//$userpic=$author->avatar;
+				$userpic=$author->avatar_mini;
 				$userlink=$author->user_url;
 				$username=$author->fullname;
 				//$userpic=bp_core_get_avatar( $user_id, 1 );
