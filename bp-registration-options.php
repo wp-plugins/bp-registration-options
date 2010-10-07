@@ -1,23 +1,19 @@
 <?php
-add_action('admin_menu', 'bprwg_menu',15);
-
-function bprwg_menu() {
-  	if (!is_site_admin()){
+//ADD BUDDYPRESS MENU ITEM FOR 'Registration Options'
+function bprwg_admin_menu() {
+	if ( !is_site_admin() )
 		return false;
-	}
-	
-	add_submenu_page('bp-general-settings','Registration Options','Registration Options', 'manage-registration-options', 'bp-registration-options/bp-registration-options.php', 'bprwg_options');
-  
+	add_submenu_page( 'bp-general-settings', __( 'Registration Options', 'bprwg'), __( 'Registration Options', 'bprwg' ), 'administrator', 'bp-registration-options', 'bprwg_admin_screen' );
 }
+add_action( 'admin_menu', 'bprwg_admin_menu' );
+
 //ADMIN SETTINGS PAGE
-function bprwg_options() {
-	global $wpdb;
-	global $bp;
-	?>
-    <h2>BuddyPress Registration Options</h2>
-    <?php
-	switch_to_blog(1);
-	$blog_id=get_current_site()->id;
+function bprwg_admin_screen() {
+	global $wpdb, $bp;
+	echo"<h2>BuddyPress Registration Options</h2>";
+	$i=1;
+	switch_to_blog($i);
+	$blog_id=$i;
 	$iprefix=$wpdb->prefix;
 	$iprefix=str_replace("_".$blog_id,"",$iprefix);
 	$get_groups=get_option('bprwg_groups');
@@ -26,17 +22,33 @@ function bprwg_options() {
 	$bp_blogs = explode(',', $get_blogs);
 	$bp_moderate=get_option('bprwg_moderate');
 
-	if($_POST['Save']!=""){
+
+	
+	if($_POST['save_privacy']!=""){
+		check_admin_referer('cro_check');
+		$privacy_network=$_POST['privacy_network'];
+		update_option('bprwg_privacy_network', $privacy_network);
+		if($privacy_network){
+			$privacy_network_exceptions=$_POST['privacy_network_exceptions'];
+		}
+		update_option('bprwg_privacy_network_exceptions', $privacy_network_exceptions);
+		$privacy_profiles_limit=$_POST['privacy_profiles_limit'];
+		update_option('bprwg_privacy_profiles_limit', $privacy_profiles_limit);
+		$privacy_profile_views=$_POST['privacy_profile_views'];
+		update_option('bprwg_privacy_profile_views', $privacy_profile_views);
+	}elseif($_POST['Save']!=""){
 
 		//nonce WP security check
 		check_admin_referer('cro_check');
 
 		//Save Options
 		$bp_groups=$_POST['bp_groups'];
-		$bp_groups_str = implode(",", $bp_groups);
+		if($bp_groups){
+			$bp_groups_str = implode(",", $bp_groups);
+		}
 		update_option('bprwg_groups', $bp_groups_str);
 		$bp_blogs=$_POST['bp_blogs'];
-		if($bp_blogs!=""){
+		if($bp_blogs){
 			$bp_blogs_str = implode(",", $bp_blogs);
 		}
 		update_option('bprwg_blogs', $bp_blogs_str);
@@ -48,7 +60,6 @@ function bprwg_options() {
 		update_option('bprwg_approved_message', $approved_message);
 		$denied_message=$_POST['denied_message'];
 		update_option('bprwg_denied_message', $denied_message);
-		echo "<div id=message class=updated fade>Options Saved!</div>";
 	}
 	if($_POST['reset_messages']!=""){
 		delete_option('bprwg_activate_message');
@@ -57,9 +68,11 @@ function bprwg_options() {
 	}
 	//Menu
 	$view=$_GET['view'];?>
-	<a <?php if ($view==""){?>style="font-weight:bold;"<?php } ?> href="<?php echo add_query_arg ('view', '');?>">General Settings</a><!-- |
-        <a <?php if ($view=="mapping"){?>style="font-weight:bold;"<?php } ?> href="<?php echo add_query_arg ('view', 'mapping');?>">WP Blog/BP Group Mapping</a>-->
-	<?php 
+	<a <?php if ($view==""){?>style="font-weight:bold;"<?php } ?> href="<?php echo add_query_arg ('view', '');?>">Registration Settings</a> |
+    <a <?php if ($view=="privacy"){?>style="font-weight:bold;"<?php } ?> href="<?php echo add_query_arg ('view', 'privacy');?>">Privacy Settings</a> <!-- |
+    <a <?php if ($view=="spam"){?>style="font-weight:bold;"<?php } ?> href="<?php echo add_query_arg ('view', 'spam');?>">Spam Settings</a> |
+        <a <?php if ($view=="mapping"){?>style="font-weight:bold;"<?php } ?> href="<?php echo add_query_arg ('view', 'mapping');?>">WP Site/BP Group Mapping</a>-->
+    <?php 
 	//ADMIN MODERATION ACTION*********************************************
 	if($bp_moderate=="yes"){
 		//Moderation Actions*******************************************
@@ -107,6 +120,9 @@ function bprwg_options() {
 					update_usermeta($userid, 'bprwg_status', 'approved');
 					$sql="update ".$iprefix."users set deleted=0 where ID=$userid";
 					$wpdb->query($wpdb->prepare($sql));
+					//update bp activity
+					$sql="update ".$iprefix."bp_activity set hide_sitewide=0 where user_id=$userid";
+					$wpdb->query($wpdb->prepare($sql));
 					//email member with custom message
 					$approved_message=get_option('bprwg_approved_message');
 					$the_email=$approved_message;
@@ -117,24 +133,35 @@ function bprwg_options() {
 					}
 					wp_mail($useremail, 'Membership Approved', $the_email);
 				}
-				echo "<div id=message class=updated fade>Checked Members Approved!</div>";
+			//DENY MEMBERS
 			}elseif($moderate_action=="Deny" && $bp_member_check!=""){
 				for ($i = 0; $i < count($bp_member_check); ++$i) {
 					$userid=(int)$bp_member_check[$i];
 					$user_info = get_userdata($userid);
 					$username=$user_info->user_login;
 					$useremail=$user_info->user_email;
-					update_usermeta($userid, 'bprwg_status', 'denied');
-					wp_delete_user($userid);
+					//wp_delete_user($userid);
+					$wpdb->query( $wpdb->prepare("DELETE FROM ".$iprefix."usermeta WHERE user_id = %d", $userid) );
+					$wpdb->query( $wpdb->prepare("DELETE FROM ".$iprefix."users WHERE ID = %d", $userid) );
+					$wpdb->query( $wpdb->prepare("DELETE FROM ".$iprefix."bp_activity WHERE user_id = %d", $userid) );
 					//email member with custom message
 					$denied_message=get_option('bprwg_denied_message');
 					$the_email=$denied_message;
 					$the_email=str_replace("[username]",$username,$the_email);
 					wp_mail($useremail, 'Membership Denied', $the_email);
 				}
-				echo "<div id=message class=updated fade>Checked Members Denied and Deleted!</div>";
-			}else{
-				echo "<div id=message class=updated fade>Please check at least 1 checkbox before pressing an action button!</div>";
+			//BAN MEMBERS
+			}elseif($moderate_action=="Ban" && $bp_member_check!=""){
+				for ($i = 0; $i < count($bp_member_check); ++$i) {
+					$userid=(int)$bp_member_check[$i];
+					$user_info = get_userdata($userid);
+					$username=$user_info->user_login;
+					$useremail=$user_info->user_email;
+					//wp_delete_user($userid);
+					$wpdb->query( $wpdb->prepare("DELETE FROM ".$iprefix."usermeta WHERE user_id = %d", $userid) );
+					$wpdb->query( $wpdb->prepare("DELETE FROM ".$iprefix."users WHERE ID = %d", $userid) );
+					$wpdb->query( $wpdb->prepare("DELETE FROM ".$iprefix."bp_activity WHERE user_id = %d", $userid) );
+				}
 			}
 		}
 
@@ -144,9 +171,21 @@ function bprwg_options() {
     	 |
         <a <?php if ($view=="members"){?>style="font-weight:bold;"<?php } ?> href="<?php echo add_query_arg ('view', 'members');?>">New Member Requests (<?php echo $members_count;?>)</a>
     <?php }
+	
 //ADMIN SETTINGS PAGE FORM*********************************************?>
-    <br /><br />
-    <form name="bpro" method="post">
+    <hr>
+    <?php 
+	if($moderate_action=="Approve" && $bp_member_check!=""){
+		echo "<div id=message class=updated fade>Checked Members Approved!</div>";
+	}elseif($moderate_action=="Deny" && $bp_member_check!=""){
+		echo "<div id=message class=updated fade>Checked Members Denied and Deleted!</div>";
+	}elseif($_POST['Moderate']!=""){
+		echo "<div id=message class=updated fade>Please check at least 1 checkbox before pressing an action button!</div>";
+	}elseif($_POST['Save']!="" || $_POST['save_privacy']!=""){
+		echo "<div id=message class=updated fade>Settings Saved!</div>";
+	}
+	?>
+    <form name="bprwg" method="post">
     <?php
     if ( function_exists('wp_nonce_field') ) wp_nonce_field('cro_check');
 
@@ -204,20 +243,22 @@ function bprwg_options() {
 			echo "document.getElementById('bp_messages').style.display='';";
 		}?>
 	   </script>
-        <br />
-       <!-- &nbsp;<input type="checkbox" name="bp_captcha" value="yes"  <?php if($bp_captcha=="yes"){?>checked<?php }?>/>&nbsp;<strong>Use Captcha</strong> (Stop spam bots from joining your website)<br />
-        <br />-->
-        Check groups or blogs members can join at registration:<br />
+<?php //**************************************************
+//MANAGE GROUPS AND BLOGS?>
+        <hr>
+       	<strong>Check groups and/or sites members can join at registration</strong><br />
         <table>
         <tr>
         <td valign="top">
             <table>
             <tr>
-                <td><strong>BP Groups:</strong></td>
+                <td><strong>BuddyPress Groups:</strong></td>
             </tr>
-            <?php //*fix wp_
-            
-            $db_result = $wpdb->get_results( "SELECT id,name FROM ".$iprefix."bp_groups where name <>'' order by name" );
+            <?php 
+			if(!is_array($bp_groups)){
+				$bp_groups=array(0);
+			}
+			$db_result = $wpdb->get_results( "SELECT id,name FROM ".$iprefix."bp_groups where name <>'' order by name" );
             if ( count( $db_result ) > 0 ) {
 				foreach( $db_result as $the_db_result ) {
 ?>
@@ -233,39 +274,104 @@ function bprwg_options() {
             ?>
             </table>
         </td>
+        <td width="100px"></td>
         <td valign="top">
             <table>
             <tr>
-                <td><strong>WP Blogs:</strong></td>
+                <td><strong>WP Multi-Sites:</strong></td>
             </tr>
             <?php
-            
-            $db_result = $wpdb->get_results( "SELECT blog_id,path FROM ".$iprefix."blogs order by path" );
-            if ( count( $db_result ) > 0 ) {
-				foreach( $db_result as $the_db_result ) {
-										
-					$db_result_n = $wpdb->get_results( "SELECT option_value FROM ". $iprefix . $the_db_result->blog_id . "_options where option_name='blogname'" );
-					if ( count( $db_result_n ) > 0 ) {
-						foreach( $db_result_n as $the_db_result_n ) {
-?>
-                    <tr>
-                         <td>
-                            <input type="checkbox" name="bp_blogs[]" value="<?php echo $the_db_result->blog_id;?>" <?php if($bp_blogs!=""){if( in_array( $the_db_result->blog_id, $bp_blogs) ) {?>checked<?php }} ?>/>&nbsp;<?php echo $the_db_result_n->option_value;?>
-                        </td>
-                    </tr>
-<?php	
-						}
-					}                 
+			if(WP_ALLOW_MULTISITE==1){
+				if(!is_array($bp_blogs)){
+					$bp_blogs=array(0);
 				}
-            
-            } ?>
+				$db_result = $wpdb->get_results( "SELECT blog_id,path FROM ".$iprefix."blogs order by path" );
+				if ( count( $db_result ) > 0 ) {
+					foreach( $db_result as $the_db_result ) {
+											
+						$db_result_n = $wpdb->get_results( "SELECT option_value FROM ". $iprefix . $the_db_result->blog_id . "_options where option_name='blogname'" );
+						if ( count( $db_result_n ) > 0 ) {
+							foreach( $db_result_n as $the_db_result_n ) {
+	?>
+						<tr>
+							 <td>
+								<input type="checkbox" name="bp_blogs[]" value="<?php echo $the_db_result->blog_id;?>" <?php if($bp_blogs!=""){if( in_array( $the_db_result->blog_id, $bp_blogs) ) {?>checked<?php }} ?>/>&nbsp;<?php echo $the_db_result_n->option_value;?>
+							</td>
+						</tr>
+	<?php	
+							}
+						}                 
+					}
+				
+				} 
+			}else{ ?>
+				<tr><td>You do not have Multi-Site enabled. Refer to <a href="http://codex.wordpress.org/Create_A_Network">http://codex.wordpress.org/Create_A_Network</a> if you would like to set it up.</td></tr>
+			<?php }?>
             </table>
         </td>
         </tr>
         </table>
         <br />
         <input type="submit" name="Save" value="Save Options" />
-    <?php }elseif($view=="mapping"){ ?>
+    <?php
+//Spam**********************************
+	}elseif($view=="spam"){ 
+		?>
+        <input type="checkbox" name="privacy_network" value="1" <?php echo $privacy_network;?>/> <strong>Require members upload a real photo.</strong><br />
+        <input type="checkbox" name="privacy_network" value="1" <?php echo $privacy_network;?>/> <strong>Use a honey pot system.</strong><br />
+        <input type="checkbox" name="privacy_network" value="1" <?php echo $privacy_network;?>/> Ban honey pot violators automatically.<br />
+        <strong>When a member is banned:</strong><br />
+        <input type="checkbox" name="privacy_network" value="1" <?php echo $privacy_network;?>/> Ban them with a cookie.<br />
+        <input type="checkbox" name="privacy_network" value="1" <?php echo $privacy_network;?>/> Ban them by their IP address.<br />
+        <input type="checkbox" name="privacy_network" value="1" <?php echo $privacy_network;?>/> Ban them by their email address (person@whatever.com).<br />
+         <input type="checkbox" name="privacy_network" value="1" <?php echo $privacy_network;?>/> Ban them from viewing the website, violators will be redirected to a 404 page.<br />
+        <input type="submit" name="save_spam" value="Save" />
+        <?php 
+//Privacy**********************************
+	}elseif($view=="privacy"){ 
+		$privacy_network=get_option('bprwg_privacy_network');
+		if ($privacy_network){
+			$privacy_network="checked";
+		}
+		$privacy_network_exceptions=get_option('bprwg_privacy_network_exceptions');
+		$privacy_profiles_limit=get_option('bprwg_privacy_profiles_limit');
+		if ($privacy_profiles_limit){
+			$privacy_profiles_limit="checked";
+		}
+		$privacy_profile_views=get_option('bprwg_privacy_profile_views');
+		if($privacy_profile_views==""){
+			$privacy_profile_views=5;
+		}
+		$private_profiles=get_option('private_profiles');
+		if ($private_profiles){
+			$private_profiles="checked";
+		}
+		?>
+        <input type="checkbox" name="privacy_network" value="1" <?php echo $privacy_network;?>/> Only registered or approved members can view BuddyPress pages (Private Network).
+        <table>
+        	<tr>
+            <td style="width:25px !important;"></td>
+            <td>
+            	The following BP pages are an exception to above:<br />
+				<?php $is_bp_dir = $bp->root_components;
+				foreach ($is_bp_dir as $value) {
+					if($value!="register" && $value!="search"  && $value!="activate"){
+						?>
+                            <input type="checkbox" name="privacy_network_exceptions[]" value="<?php echo $value;?>" <?php if(is_array($privacy_network_exceptions)){if(in_array($value,$privacy_network_exceptions)){echo"checked";}}?>/> <?php echo ucfirst($value);?><br />
+                        <?php
+					}
+				}
+			
+				?>
+            </td>
+            </tr>
+        </table>
+        <!--<input type="checkbox" name="privacy_profiles_limit" value="1" <?php echo $privacy_profiles_limit;?> /> Public can only view BuddyPress profiles <input type="text" name="privacy_profile_views" value="<?php echo $privacy_profile_views;?>" style="width:20px;" /> times before being forced to register.<br />
+        <input type="checkbox" name="private_profiles" value="1" <?php echo $private_profiles;?>/> Give members an option to make their profile viewable by their friends only.<br />-->
+        <input type="submit" name="save_privacy" value="Save" />
+        <?php
+//MAPPING
+	}elseif($view=="mapping"){ ?>
 		<!--You can map WP Blogs to BP Groups so when a new member joins one they are automatically tied to the other. An example would be if you map Group A to Blog A, when a user joins Group A at registration they will automatically join Blog A or if a user joins Blog A they will automatically join Group A.-->
         Map blogs to blogs and/or groups and map groups to groups and/or blogs.<br /><br />
         <table>
@@ -315,7 +421,7 @@ function bprwg_options() {
 		if ($members_count > 0) { ?>
             Please approve or deny the following new members:
             <SCRIPT LANGUAGE="JavaScript">
-			function bpro_checkall(field){
+			function bprwg_checkall(field){
 				if(document.getElementById('bp_checkall').checked == true){
 					checkAll(field)
 				}else{
@@ -337,7 +443,7 @@ function bprwg_options() {
 			</script>
             <table cellpadding="3" cellspacing="3">
             <tr>
-            	<td><input type="checkbox" id="bp_checkall" onclick="bpro_checkall(document.bpro.bp_member_check);" name="checkall" /></td>
+            	<td><input type="checkbox" id="bp_checkall" onclick="bprwg_checkall(document.bprwg.bp_member_check);" name="checkall" /></td>
                 <td><strong>Photo</strong></td>
                 <td><strong>Name</strong></td>
                 <?php
@@ -351,17 +457,22 @@ function bprwg_options() {
                 <?php } ?>
             	<td><strong>Email</strong></td>
                 <td><strong>Created</strong></td>
+                <td><strong>IP</strong></td>
             </tr>
 <?php
 
 			// We reuse the query from line 138
 			foreach( $db_result_u as $the_db_result ) {	
 				$user_id=$the_db_result->ID;
-				//$userlink=bp_core_get_userurl($user_id);
-				$username=bp_core_get_user_displayname($user_id, true );
+				$author = new BP_Core_User( $user_id );
+				$userpic=$author->avatar;
+				//$userpic=$author->avatar_mini;
+				$userlink=$author->user_url;
+				$username=$author->fullname;
 				//$userpic=bp_core_get_avatar( $user_id, 1 );
 				$useremail=$the_db_result->user_email;
 				$userregistered=$the_db_result->user_registered;
+				$userip = get_user_meta( $user_id, 'bprwg_ip_address', true); 
 				if($bgc==""){
 					$bgc="#ffffff";
 				}else{
@@ -371,7 +482,7 @@ function bprwg_options() {
 				<tr style="background:<?php echo $bgc;?> !important;">
                     <td valign="top"><?php //echo $user_id; ?><input type="checkbox" id="bp_member_check" name="bp_member_check[]" value="<?php echo $user_id; ?>"  /></td>
                     <td valign="top"><a target="_blank" href="<?php echo $userlink; ?>"><?php echo $userpic?></a></td>
-                    <td valign="top"><strong><?php echo $username?></strong><br /><a target="_blank" href="<?php echo $userlink; ?>">view profile</a></td>
+                    <td valign="top"><strong><a target="_blank" href="<?php echo $userlink; ?>"><?php echo $username?></a></strong></td>
                     <?php if ($groups!=""){ ?>
                     <td valign="top">
 <?php 
@@ -386,7 +497,7 @@ function bprwg_options() {
 <?php							
 							}
 						} else {
-							echo "No private groups requested.";
+							echo "N/A";
 						}
 
 ?>
@@ -394,6 +505,7 @@ function bprwg_options() {
                     <?php } ?>
                     <td valign="top"><a href="mailto:<?php echo $useremail;?>"><?php echo $useremail;?></a></td>
                     <td valign="top"><?php echo $userregistered;?></td>
+                    <td valign="top"><?php echo $userip;?></td>
 
                 </tr>
 		<?php } ?>
@@ -402,6 +514,8 @@ function bprwg_options() {
 			<br />
             <input type="submit" name="Moderate" value="Approve" />
             <input type="submit" name="Moderate" value="Deny" onclick="return confirm('Are you sure you want to deny and delete the checked memeber(s)?');" />
+            <input type="submit" name="Moderate" value="Ban" onclick="return confirm('Are you sure you want to ban and delete the checked memeber(s)?');" /><br /><br />
+            *If you Ban a member they will not receive an email.
          <?php }else{
 		 	echo "No new members to approve.";
 		 }
@@ -417,11 +531,11 @@ function bprwg_options() {
 //ACCOUNT ACTIVATION ACTIONS*******************************************************************
 //ACCOUNT ACTIVATION ACTIONS*******************************************************************
 function bprwg_update_profile(){
-	global $wpdb, $bp, $user_id;
+	global $wpdb, $bp, $user_id, $blog_id;
 	switch_to_blog(1);
-	$blog_id=get_current_site()->id;
+	$iblog_id=$blog_id;
 	$iprefix=$wpdb->prefix;
-	$iprefix=str_replace("_".$blog_id,"",$iprefix);
+	$iprefix=str_replace("_".$iblog_id,"",$iprefix);
 	//Get Current User_ID
 	//$userid = $bp->loggedin_user->id;
 	//If not logged in they came from activation page
@@ -429,7 +543,6 @@ function bprwg_update_profile(){
 		$key=$_GET['key'];
 		if ($key!=""){
 			if ( bp_account_was_activated() ) :
-				
 				$db_result = $wpdb->get_results( "select ID from ".$iprefix."users where user_activation_key='$key'" );
 				if ( count( $db_result ) > 0 ) {
 					foreach( $db_result as $the_db_result ) {
@@ -437,7 +550,6 @@ function bprwg_update_profile(){
 						$from_reg = 'yes';					
 					}
 				}
-
 			endif;
 		}
 	}
@@ -507,11 +619,13 @@ function bprwg_update_profile(){
 			if ($bp_moderate=="yes"){
 				//add/update usermeta status to activated
 				update_usermeta($userid, 'bprwg_status', 'activated');
+				update_usermeta($userid, 'bprwg_ip_address', $_SERVER['REMOTE_ADDR']);
+	
 				//update wp_users to deleted=1, this will prevent member from being listed in member directory but not actually delete them. once appoved will be updated back to 0, if denied will fully delete account
 				$sql="update ".$iprefix."users set deleted=1 where ID=$userid";
 				$wpdb->query($wpdb->prepare($sql));
 				//fire off email to admin about new memebr with links to accept or reject
-				$mod_email=$username." would like to become a member of your website, to accept or reject their request please go to ".get_bloginfo("url")."/wp-admin/options-general.php?page=bp-registration-options/bp-registration-options.php&view=members \n\n";
+				$mod_email=$username." would like to become a member of your website, to accept or reject their request please go to ".get_bloginfo("url")."/wp-admin/admin.php?page=bp-registration-options&view=members \n\n";
 			}
 			//delete user_activation_key after activation
 			$sql="update ".$iprefix."users set user_activation_key='' where ID=$userid";
@@ -534,16 +648,21 @@ function bprwg_update_profile(){
 
 //called from activation hook
 function bprwg_activate($userid){
-	global $wpdb, $bp;
-	$blog_id=get_current_site()->id;
+	global $wpdb, $bp, $blog_id;
+	$iblog_id=$blog_id;
 	$iprefix=$wpdb->prefix;
-	$iprefix=str_replace("_".$blog_id,"",$iprefix);
+	$iprefix=str_replace("_".$iblog_id,"",$iprefix);
 	//get key from querystring and update user_activation_key in wp_users (has already been deleted on activation, put back in so we can grab it after bp activation stuff runs then delete it again)
 	$key=$_GET['key'];
 	$sql="update ".$iprefix."users set user_activation_key='$key' where ID=$userid";
 	$wpdb->query($wpdb->prepare($sql));
+	//Hide any by activity
+	$sql="update ".$iprefix."bp_activity set hide_sitewide=1 where user_id=$userid";
+	$wpdb->query($wpdb->prepare($sql));
 }
-add_action( 'wpmu_activate_user', 'bprwg_activate');
+//add_action( 'wpmu_activate_user', 'bprwg_activate');//Only works on MS
+
+add_action( 'bp_core_activate_account', 'bprwg_activate');
 add_filter('bp_before_activate_content', 'bprwg_update_profile');
 
 
@@ -576,8 +695,7 @@ function bprwg_approve_message(){
 
 //INIT***************************************
 function bprwg_redirect(){
-	global $wpdb;
-	
+	global $wpdb, $bp;
 	//add/remove users to/from blogs
 	if($_POST['Update_Blog']!=""){
 		global $bp, $blog_id, $user_id;
@@ -613,7 +731,7 @@ function bprwg_redirect(){
 										//echo "blog_id: ".$iblog_id."<br>";
 										//echo "userid: ".$userid."<br>";
 										add_user_to_blog($iblog_id, $userid, $default_role);						
-										}
+									}
 								}
 							}
 						//if not checked
@@ -659,28 +777,71 @@ function bprwg_redirect(){
 		echo '<meta http-equiv="refresh" content="0;url='.$url.'" />';
 		exit();
 	}
+	
+	$url = $_SERVER['REQUEST_URI'];
+	$is_bp=$url;
+	$is_bp=str_replace("?","/",$is_bp);
+	$is_bp=substr($is_bp,0,strpos($is_bp,'/',1));
+	if($is_bp==""){
+		$is_bp=$url;
+	}
+	$is_bp=str_replace("/","",$is_bp);
+	
+	//redirect profile viewer X times to registation
+	$privacy_profile=get_option('bprwg_privacy_profile_views');
+	$profile_id=$bp->displayed_user->id;
+	//echo "<hr>here: ".$profile_id."<hr>";
+	if($privacy_profile!="" && $profile_id!="" && $bp->loggedin_user->id=="0"){
+		$privacy_profiles_limit=get_option('bprwg_privacy_profiles_limit');
+		$my_profile_view=6;
+		if($my_profile_view >= $privacy_profiles_limit){
+			$url=get_option('siteurl')."/register/?profile_views=true";
+			wp_redirect($url);
+			echo '<meta http-equiv="refresh" content="0;url='.$url.'" />';
+			exit();
+		}
+	}
+	
+	//Show Private network message on registration page
+	$privacy_network=get_option('bprwg_privacy_network');
+	if($privacy_network){
+		add_filter('bp_before_container', 'bprwg_message_private_network');
+	}
 	$bp_moderate=get_option('bprwg_moderate');
-	//check if moderation is on
-	if ($bp_moderate=="yes"){
+	//check if moderation or private network is on
+	if ($bp_moderate=="yes" || $privacy_network!=""){
 		//only restrict buddypress pages
-		if(strrpos($_SERVER['REQUEST_URI'],"/members")!== false || strrpos($_SERVER['REQUEST_URI'],"/groups")!== false){
-			global $bp;
+		$is_bp_dir = $bp->root_components;
+		if (in_array($is_bp, $is_bp_dir) && $is_bp!="register" && $is_bp!="activate") {
 			//check if logged in
-			$userid =  $bp->loggedin_user->id ;
-			if ($userid!=""){
-				$user_info = get_userdata($userid);
-				$username=$user_info->user_login;
-				$url="/members/".$username."/profile/";
-				//check if approved or grandfathered in (already had account when pluhin activated)
-				$status = get_usermeta($userid, 'bprwg_status');
-				if($status!="approved"&& $status!=""){
+			$userid =  $bp->loggedin_user->id;
+			if ($userid!="" || $privacy_network!=""){
+				if ($userid!=""){
+					$user_info = get_userdata($userid);
+					$username=$user_info->user_login;
+					$url="/members/".$username."/profile/";
+					//check if approved or grandfathered in (already had account when plugin activated)
+					$status = get_usermeta($userid, 'bprwg_status');
+					if($status!="approved" && $status!=""){
 					//check if allowed buddypress pages
-					if($url==$_SERVER['REQUEST_URI'] || strrpos($_SERVER['REQUEST_URI'],$url."change-avatar")!== false || strrpos($_SERVER['REQUEST_URI'],$url."edit")!== false || strrpos($_SERVER['REQUEST_URI'],"wp-login.php?action=logout")!== false){
-						add_filter('bp_before_profile_menu', 'bprwg_approve_message');
-					}else{
-						$url=get_option('siteurl').$url;
+						if($url==$_SERVER['REQUEST_URI'] || strrpos($_SERVER['REQUEST_URI'],$url."change-avatar")!== false || strrpos($_SERVER['REQUEST_URI'],$url."edit")!== false || strrpos($_SERVER['REQUEST_URI'],"wp-login.php?action=logout")!== false){
+							//add_filter('bp_before_profile_menu', 'bprwg_approve_message');
+							add_filter('bp_before_container', 'bprwg_approve_message');
+						}else{
+							$url=get_option('siteurl').$url;
+							wp_redirect($url);
+							echo '<meta http-equiv="refresh" content="0;url='.$url.'" />';//if for some reason wp_redirect isn't working.(maybe other plugins runing before with output)
+							exit();
+						}
+					}
+				}else{
+					$privacy_network_exceptions=get_option('bprwg_privacy_network_exceptions');
+					if(!is_array($privacy_network_exceptions)){
+						$privacy_network_exceptions=array();	
+					}
+					if(!in_array($is_bp, $privacy_network_exceptions)){
+						$url=get_option('siteurl')."/register/?private=true";
 						wp_redirect($url);
-						//if for some reason wp_redirect isn't working.(maybe other plugins runing before with output)
 						echo '<meta http-equiv="refresh" content="0;url='.$url.'" />';
 						exit();
 					}
@@ -693,22 +854,30 @@ add_action('init', 'bprwg_redirect', -1);
 add_filter('bp_after_activate_content', 'bprwg_approve_message');
 
 
+function bprwg_message_private_network() {
+    if($_GET['private']=='true'){
+		echo '<div id="message" class="error"><p>This is a private network. You must register first before fully interacting with the rest of the community.';
+    	echo '</p></div>';
+	}
+}
+
 //ADMIN DASHBOARD MESSAGE******************************************************
 function bprwg_admin_msg() {
-	global $wpdb;
+	global $wpdb,$blog_id;
 	if (current_user_can('manage_options')){
 		$bp_moderate=get_option('bprwg_moderate');
 		if ($bp_moderate=="yes"){
-			$blog_id=get_current_site()->id;
+			$iblog_id=$blog_id;
 			$iprefix=$wpdb->prefix;
 			$iprefix=str_replace("_".$blog_id,"",$iprefix);
 
             $db_result = $wpdb->get_results( "Select a.* from ".$iprefix."users a LEFT OUTER JOIN ".$iprefix."usermeta b on a.ID=b.user_id where b.meta_key='bprwg_status' and meta_value<>'approved' and meta_value<>'denied' order by a.ID" );
             if ( count( $db_result ) > 0 ) {
+				
 				if( count( $db_result ) != 1 ){
 					$s = 's';
 				}
-				echo '<div class="error"><p>You have <a href="'.get_bloginfo("url").'/wp-admin/options-general.php?page=bp-registration-options/bp-registration-options.php&view=members"><strong>'.$members_count.' new member request'.$s.'</strong></a> that you need to approve or deny. Please <a href="'.get_bloginfo("url").'/wp-admin/options-general.php?page=bp-registration-options/bp-registration-options.php&view=members">click here</a> to take action.</p></div>';				
+				echo '<div class="error"><p>You have <a href="'.get_bloginfo("url").'/wp-admin/admin.php?page=bp-registration-options&view=members"><strong>'.count( $db_result ).' new member request'.$s.'</strong></a> that you need to approve or deny. Please <a href="'.get_bloginfo("url").'/wp-admin/admin.php?page=bp-registration-options&view=members">click here</a> to take action.</p></div>';				
             }
             
 		}
@@ -721,11 +890,11 @@ add_action( 'admin_init', 'bprwg_admin_init' );
 
 //REGISTRATION FORM*******************************************************************************
 function bprwg_register_page(){
-	global $wpdb, $bp, $user_id;
-	switch_to_blog(1);
-	$blog_id=get_current_site()->id;
+	global $wpdb, $bp, $user_id, $blog_id;
+	//switch_to_blog(1);
+	$iblog_id=$blog_id;
 	$iprefix=$wpdb->prefix;
-	$iprefix=str_replace("_".$blog_id,"",$iprefix);
+	$iprefix=str_replace("_".$iblog_id,"",$iprefix);
 	//GROUPS
 	$bp_groups=get_option('bprwg_groups');
 	if($bp_groups!=""){
@@ -733,7 +902,7 @@ function bprwg_register_page(){
 		$db_result = $wpdb->get_results( "SELECT id,name FROM ".$iprefix."bp_groups where id in ($bp_groups) order by name" );
 		if ( count( $db_result ) > 0 ) {
 ?>
-			<div id="bp_registration-options-groups">
+			<div id="bp_registration-options-groups" class="register-section">
             <strong>Group(s)</strong><br />
 			<?php foreach( $db_result as $the_db_result ): ?>
                 <input type="checkbox" name="bprwg_groups[]" value="<?php echo $the_db_result->id; ?>" />&nbsp;<?php echo $the_db_result->name; ?>&nbsp;&nbsp;
