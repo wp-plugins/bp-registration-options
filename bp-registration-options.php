@@ -1,5 +1,4 @@
 <?php
-
 //ADD BUDDYPRESS MENU ITEM FOR 'Registration Options'
 
 function bprwg_admin_menu() {
@@ -20,19 +19,11 @@ add_action( 'admin_menu', 'bprwg_admin_menu' );
 
 function bprwg_admin_screen() {
 
-	global $wpdb, $bp;
+	global $wpdb, $bp, $iprefix;
+	
+	switch_to_blog(1);
 
 	echo"<h2>BuddyPress Registration Options</h2>";
-
-	$i=1;
-
-	switch_to_blog($i);
-
-	$blog_id=$i;
-
-	$iprefix=$wpdb->prefix;
-
-	$iprefix=str_replace("_".$blog_id,"",$iprefix);
 
 	$get_groups=get_option('bprwg_groups');
 
@@ -43,12 +34,6 @@ function bprwg_admin_screen() {
 	$bp_blogs = explode(',', $get_blogs);
 
 	$bp_moderate=get_option('bprwg_moderate');
-
-
-
-
-
-	
 
 	if($_POST['save_privacy']!=""){
 
@@ -636,6 +621,7 @@ function bprwg_admin_screen() {
 
 //Privacy**********************************
 
+
 	}elseif($view=="privacy"){ 
 
 		$privacy_network=get_option('bprwg_privacy_network');
@@ -1042,16 +1028,10 @@ function bprwg_admin_screen() {
 
 function bprwg_update_profile(){
 
-	global $wpdb, $bp, $user_id, $blog_id;
+	global $wpdb, $bp, $user_id, $blog_id, $iprefix;
 
 	switch_to_blog(1);
-
-	$iblog_id=$blog_id;
-
-	$iprefix=$wpdb->prefix;
-
-	$iprefix=str_replace("_".$iblog_id,"",$iprefix);
-
+	
 	//Get Current User_ID
 
 	//$userid = $bp->loggedin_user->id;
@@ -1276,13 +1256,7 @@ function bprwg_update_profile(){
 
 function bprwg_activate($userid){
 
-	global $wpdb, $bp, $blog_id;
-
-	$iblog_id=$blog_id;
-
-	$iprefix=$wpdb->prefix;
-
-	$iprefix=str_replace("_".$iblog_id,"",$iprefix);
+	global $wpdb, $bp, $blog_id, $iprefix;
 
 	//get key from querystring and update user_activation_key in wp_users (has already been deleted on activation, put back in so we can grab it after bp activation stuff runs then delete it again)
 
@@ -1376,7 +1350,7 @@ function bprwg_redirect(){
 
 	if($_POST['Update_Blog']!=""){
 
-		global $bp, $blog_id, $user_id;
+		global $bp, $blog_id, $user_id, $iprefix;
 
 		$userid =  $bp->loggedin_user->id ;
 
@@ -1391,10 +1365,6 @@ function bprwg_redirect(){
 				//echo "bp_blogs_form:".$bp_blogs_form;
 
 				$arr_bp_blogs = explode(",", $bp_blogs);
-
-				$iprefix=$wpdb->prefix;
-
-				$iprefix=str_replace("_".$blog_id,"",$iprefix);
 
 				for($i = 0; $i < count($arr_bp_blogs); $i++){
 
@@ -1706,23 +1676,28 @@ function bprwg_message_private_network() {
 
 function bprwg_admin_msg() {
 
-	global $wpdb,$blog_id;
-
+	global $wpdb, $iprefix;
+	
+	switch_to_blog(1);
+	//Delete any un-activated accounts over 7 days old
+	$thedate=date('Y-m-d G:i:s');
+	$oneWeekAgo = strtotime ( '-1 week' , strtotime ( $thedate ) ) ;
+	$thedate=date ( 'Y-m-j G:i:s' , $oneWeekAgo );
+	$db_result = $wpdb->get_results("Select user_email from ".$iprefix."signups where active=0 and registered < '".$thedate."'");
+	if ( count( $db_result ) > 0 ) {
+		foreach( $db_result as $the_db_result ) {
+			$email=$the_db_result->user_email;
+			$wpdb->get_results( "delete from ".$iprefix."options where option_name = 'bprwg_newmember_groups_".$email."' or option_name = 'bprwg_newmember_blogs_".$email."'" );
+			$wpdb->get_results( "delete from ".$iprefix."signups where active=0 and user_email='".$email."'" );
+		}
+	}
 	if (current_user_can('manage_options')){
 
 		$bp_moderate=get_option('bprwg_moderate');
 
 		if ($bp_moderate=="yes"){
 
-			$iblog_id=$blog_id;
-
-			$iprefix=$wpdb->prefix;
-
-			$iprefix=str_replace("_".$blog_id,"",$iprefix);
-
-
-
-            $db_result = $wpdb->get_results( "Select a.* from ".$iprefix."users a LEFT OUTER JOIN ".$iprefix."usermeta b on a.ID=b.user_id where b.meta_key='bprwg_status' and meta_value<>'approved' and meta_value<>'denied' order by a.ID" );
+			$db_result = $wpdb->get_results( "Select a.* from ".$iprefix."users a LEFT OUTER JOIN ".$iprefix."usermeta b on a.ID=b.user_id where b.meta_key='bprwg_status' and meta_value<>'approved' and meta_value<>'denied' order by a.ID" );
 
             if ( count( $db_result ) > 0 ) {
 
@@ -1760,15 +1735,7 @@ add_action( 'admin_init', 'bprwg_admin_init' );
 
 function bprwg_register_page(){
 
-	global $wpdb, $bp, $user_id, $blog_id;
-
-	//switch_to_blog(1);
-
-	$iblog_id=$blog_id;
-
-	$iprefix=$wpdb->prefix;
-
-	$iprefix=str_replace("_".$iblog_id,"",$iprefix);
+	global $wpdb, $bp, $user_id, $blog_id, $iprefix;
 
 	//GROUPS
 
@@ -1902,13 +1869,9 @@ add_action( 'bp_complete_signup', 'bprwg_register_save' );
 
 function bprwg_blog_menu(){ 
 
-	global $wpdb, $bp;
+	global $wpdb, $bp, $iprefix;
 
 	if ( bp_is_my_profile() ) :
-
-		$iprefix=$wpdb->prefix;
-
-		$iprefix=str_replace("_1","",$iprefix);
 
 		$bp_blogs=get_option('bprwg_blogs');
 

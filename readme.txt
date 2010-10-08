@@ -10,7 +10,7 @@ Requires at least: 2.6
 
 Tested up to: 3.0
 
-Stable tag: 3.0.1
+Stable tag: 3.0.2
 
 Moderate new BuddyPress members, fight BuddyPress spam, set BuddyPress Groups or Blogs/Sites new members can join on the registration page. 
 
@@ -52,6 +52,10 @@ For more information check out:
 
 
 == Changelog ==
+
+= 3.0.2 =
+
+* Any registered members that never activated their account will be deleted after 7 days.
 
 = 3.0.1 =
 
