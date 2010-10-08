@@ -96,7 +96,9 @@ For more information check out:
 == Frequently Asked Questions ==
 
 
+= Does this plugin work with WordPress Multi-Site? =
 
+Absolutely!  This plugin has been tested and verified to work on the most current version of WordPress with Multi-Site or with stand alone WordPress. 
 
 
 == Plugin Support ==
