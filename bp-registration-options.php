@@ -283,6 +283,7 @@ function bprwg_admin_screen() {
 					$useremail=$user_info->user_email;
 					
 					delete_option('bprwg_newmember_groups_'.$useremail);
+					delete_option('bprwg_newmember_blogs_'.$useremail);
 
 					$wpdb->query( $wpdb->prepare("DELETE FROM ".$iprefix."usermeta WHERE user_id = %d", $userid) );
 
