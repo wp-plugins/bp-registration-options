@@ -179,6 +179,9 @@ function bprwg_admin_screen() {
 					$username=$user_info->user_login;
 
 					$useremail=$user_info->user_email;
+					
+					delete_option('bprwg_newmember_groups_'.$useremail);
+					delete_option('bprwg_newmember_blogs_'.$useremail);
 
 					//update any requested private groups
 
