@@ -3,7 +3,7 @@
 Plugin Name: BP-Registration-Options
 Plugin URI: http://webdevstudios.com/support/wordpress-plugins/buddypress-registration-options/
 Description: BuddyPress plugin that allows for new member moderation, if moderation is switched on any new members will be blocked from interacting with any buddypress elements (except editing their own profile and uploading their avatar) and will not be listed in any directory until an admin approves or denies their account. Plugin also allows new members to join one or more predefined groups or blogs at registration.
-Version: 3.0
+Version: 3.0.1
 Requires at least: WordPress 2.9.1 / BuddyPress 1.2
 Tested up to: WordPress 3.0.1 / BuddyPress 1.2.5
 Author: Brian Messenlehner of WebDevStudios.com
