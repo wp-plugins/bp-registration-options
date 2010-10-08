@@ -55,7 +55,7 @@ For more information check out:
 
 = 3.0.1 =
 
-* When a member is denied and they joined any groups at registration their record will be deleted.
+* When a member is denied and they joined any groups at registration any records relating them to groups will be deleted.
 
 = 3.0 =
 
