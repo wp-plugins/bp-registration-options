@@ -1687,7 +1687,7 @@ function bprwg_admin_msg() {
 	if ( count( $db_result ) > 0 ) {
 		foreach( $db_result as $the_db_result ) {
 			$email=$the_db_result->user_email;
-			$wpdb->get_results( "delete from ".$iprefix."options where option_name = 'bprwg_newmember_groups_".$email."' or option_name = 'bprwg_newmember_blogs_".$email."'" );
+			$wpdb->get_results( "delete from ".$wpdb->prefix."options where option_name = 'bprwg_newmember_groups_".$email."' or option_name = 'bprwg_newmember_blogs_".$email."'" );
 			$wpdb->get_results( "delete from ".$iprefix."signups where active=0 and user_email='".$email."'" );
 		}
 	}
