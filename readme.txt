@@ -10,7 +10,7 @@ Requires at least: 2.6
 
 Tested up to: 3.0
 
-Stable tag: 3.0.2
+Stable tag: 3.0.3
 
 Moderate new BuddyPress members, fight BuddyPress spam, set BuddyPress Groups or Blogs/Sites new members can join on the registration page. 
 
@@ -52,6 +52,10 @@ For more information check out:
 
 
 == Changelog ==
+
+= 3.0.3 =
+
+* Added country flag and data driven from IP address on moderation admin page to quickly show where a requested member is from. Thanks for the idea Steve Bruner!
 
 = 3.0.2 =
 

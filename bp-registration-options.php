@@ -880,7 +880,7 @@ function bprwg_admin_screen() {
 
                 <td><strong>Created</strong></td>
 
-                <td><strong>IP</strong></td>
+                <td><strong>IP Data</strong></td>
 
             </tr>
 
@@ -976,11 +976,28 @@ function bprwg_admin_screen() {
 
                     <td valign="top"><?php echo $userregistered;?></td>
 
-                    <td valign="top"><?php echo $userip;?></td>
+                    <td valign="top">
+						<table>
+                        <tr>
+                        <td valign="top">
+						<?php echo '<img src="http://api.hostip.info/flag.php?ip=' . $userip . '" / >' ?>
+                        </td>
+                        <td valign="top">
+							<?php 
+                            $response = wp_remote_get( 'http://api.hostip.info/get_html.php?ip=' . $userip );
+                            if(!is_wp_error( $response ) ) {
+                                 $data = $response['body'];
+								 $data = str_replace("City:","<br>City:",$data);
+								 $data = str_replace("IP:","<br>IP:",$data);
+								 echo $data;
+                            }
+                            ?>
+                        </td>
+                        </tr>
+                        </table>
+                    </td>
 
-
-
-                </tr>
+				</tr>
 
 		<?php } ?>
 
@@ -1968,11 +1985,4 @@ function bprwg_blog_menu(){
 }
 
 add_filter( 'bp_before_member_blogs_content', 'bprwg_blog_menu');
-
-
-
-
-
-
-
 ?>
