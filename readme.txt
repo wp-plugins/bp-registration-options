@@ -1,16 +1,18 @@
 === BuddyPress Registration Options ===
 
-Contributors: Messenlehner
+Contributors: Messenlehner, webdevstudios
 
 Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=3084056
 
 Tags: buddypress, wpmu, wpms, plugin, admin, moderation, registration, groups, blogs, new members, buddypress private network, buddypress spam
 
-Requires at least: 2.6
+Requires at least: 3.0
 
-Tested up to: 3.0
+Tested up to: 3.5
 
-Stable tag: 3.0.3
+Stable tag: 4.0.0
+
+License: GPLv2
 
 Moderate new BuddyPress members, fight BuddyPress spam, set BuddyPress Groups or Blogs/Sites new members can join on the registration page. 
 
@@ -20,7 +22,7 @@ Moderate new BuddyPress members, fight BuddyPress spam, set BuddyPress Groups or
 Great plugin for stopping spam bots from registering on your BuddyPress website!
 
 
-This WordPress BuddyPress plugin that allows for new member moderation, if moderation is turned on from the admin settings page, any new members will be blocked from interacting with any buddypress elements (except editing their own profile and uploading their avatar) and will not be listed in any directory until an administrator approves or denies their account. This plugin also creates bp profile field checkbox groups on the /register page from checked off groups or blogs in the admin settings section so any new members can join one or more groups or blogs that you specify at registration. If moderation is turned on admins can create custom display messages and email alert messages for approved or denied accounts. When admin approves or denies, custom emails get sent out to new members telling them they were approved or denied.
+This WordPress BuddyPress plugin that allows for new member moderation, if moderation is turned on from the admin settings page, any new members will be blocked from interacting with any buddypress elements (except editing their own profile and uploading their avatar) and will not be listed in any directory until an administrator approves or denies their account. If moderation is turned on admins can create custom display messages and email alert messages for approved or denied accounts. When admin approves or denies, custom emails get sent out to new members telling them they were approved or denied.
 
 
 For more information check out:
@@ -53,6 +55,10 @@ For more information check out:
 
 == Changelog ==
 
+= 4.0.0 =
+
+* Revamp of entire plugin. Stripped out features for joining particular groups at registration so you may not want to upgrade if you are dependent on these features.
+
 = 3.0.3 =
 
 * Added country flag and data driven from IP address on moderation admin page to quickly show where a requested member is from. Thanks for the idea Steve Bruner!
@@ -79,6 +85,13 @@ For more information check out:
 = 1.0 =
 
 * First official release
+
+
+== Upgrade Notice ==
+
+= 4.0.0 =
+
+* Revamp of entire plugin. Stripped out features for joining particular groups at registration so you may not want to upgrade if you are dependent on these features.
 
 
 == Installation ==
