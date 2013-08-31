@@ -14,7 +14,7 @@ class BP_Registration_Options {
 		require_once( $this->directory_path . 'includes/admin.php' );
 		require_once( $this->directory_path . 'includes/core.php' );
 
-		add_action('plugins_loaded', 'load_textdomain');
+		add_action('plugins_loaded', array( &$this, 'load_textdomain' ) );
 	}
 
 	/**
