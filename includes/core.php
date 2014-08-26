@@ -6,245 +6,258 @@
  */
 
 /**
- * set $bp_moderate & $bprwg_privacy_network globals and filter off bp buttons
+ * Display pending message to users until they're activated.
+ *
+ * @since  unknown
+ *
+ * @return string  HTML message
  */
-add_action( 'init', 'wds_bp_registration_options_core_init' );
-function wds_bp_registration_options_core_init(){
-	global $bp_moderate, $bprwg_privacy_network, $wpdb, $bp, $user_ID, $blog_id;
-	if ( !is_admin() ) {
-		if ( is_multisite() ) {
-			$blogid = $blog_id;
-			switch_to_blog(1);
-		}
-		$bprwg_privacy_network = get_option('bprwg_privacy_network');
-		$bp_moderate = get_option('bprwg_moderate');
-		if ( is_multisite() ) {
-			switch_to_blog($blogid);
-		}
-		//non approved members and non logged in members can not view any buddypress pages
-		if ( $bprwg_privacy_network == 1 ) {
-			//redirect non logged in users to registration page, if register page is not set then kill it
-			if ( $bp->current_component && $user_ID == 0 && $bp->current_component != 'register' && $bp->current_component != 'activate' ) {
-				if ( $bp->pages->register->slug ) {
-					wp_redirect( site_url() . '/' . $bp->pages->register->slug );
-					exit();
-				} else {
-					exit();
-				}
-			//if logged in and not approved then redirect to their profile page
-			} elseif ( $bp->current_component && $user_ID > 0 && ( $bp->displayed_user->userdata == '' || $bp->displayed_user->userdata != '' && $bp->displayed_user->id != $user_ID ) ) {
-				$user = get_userdata( $user_ID );
-				if ( 69 == $user->user_status ) {
-					wp_redirect( $bp->loggedin_user->domain );
-					exit();
-				}
-			}
-		}
-		//non approved members can still view bp pages
-		if ( $bp_moderate == 1 && $user_ID > 0 ) {
-			$user = get_userdata($user_ID);
-			if ( 69 == $user->user_status ) {
-				//hide friend buttons
-				add_filter( 'bp_get_add_friend_button', '__return_false' );
-				add_filter( 'bp_get_send_public_message_button', '__return_false' );
-				add_filter( 'bp_get_send_message_button', '__return_false' );
-				//hide group buttons
-				add_filter( 'bp_user_can_create_groups', '__return_false' );
-				add_filter( 'bp_get_group_join_button', '__return_false' );
-				//hide activity comment buttons
-				add_filter( 'bp_activity_can_comment_reply', '__return_false' );
-				add_filter( 'bp_activity_can_comment', '__return_false' );
-				add_filter( 'bp_acomment_name', '__return_false' );
-				//redirect messages page back to profile (dont want blocked members contacting other members)
-				add_filter( 'bp_get_options_nav_invite', '__return_false' );
-				add_filter( 'bp_get_options_nav_compose', '__return_false' );
-				if ( $bp->current_component == 'messages' ) {
-					wp_redirect( $bp->loggedin_user->domain );
-					exit();
-				}
-			//set global to false
-			} else {
-				$bp_moderate = false;
-			}
-		}
-	}
-}
+function bp_registration_options_bp_after_activate_content() {
+	$user = get_current_user_id();
 
-/**
- * Hide any bp buttons & form via css because of no filters
- */
-add_action( 'wp_head', 'wds_bp_registration_options_wp_head' );
-function wds_bp_registration_options_wp_head(){
-	global $bp_moderate;
-	if ( $bp_moderate ) {
-		?>
-        <style>
-			#whats-new-form,#new-topic-button,#post-topic-reply,#new-topic-post {display:none !important;}
-			.activity-meta,.acomment-options,.group-button {display:none !important;}
-        </style>
-        <?php
-	}
-}
-
-
-/**
- * Disables activity post form
- */
-add_action('bp_before_activity_post_form','wds_bp_before_activity_post_form', 0);
-function wds_bp_before_activity_post_form(){
-	global $bp_moderate;
-	if ( $bp_moderate ) ob_start();
-}
-add_action('bp_after_activity_post_form','wds_bp_after_activity_post_form', 0);
-function wds_bp_after_activity_post_form(){
-	global $bp_moderate;
-	if ( $bp_moderate ) ob_end_clean();
-}
-
-/**
- * Disables activity comment buttons/forms
- */
-add_action('bp_activity_entry_content','wds_bp_activity_entry_content', 0);
-function wds_bp_activity_entry_content(){
-	global $bp_moderate;
-	if ( $bp_moderate ) ob_start();
-}
-add_action('bp_before_activity_entry_comments','wds_bp_before_activity_entry_comments', 0);
-function wds_bp_before_activity_entry_comments(){
-	global $bp_moderate;
-	if ( $bp_moderate ) {
-		ob_end_clean();
-		echo '</div>';//needs this div from betweek the two hooks
-	}
-}
-
-/**
- * Disables forums new topic form (groups page)
- */
-add_action('bp_before_group_forum_post_new','wds_bp_before_group_forum_post_new', 0);
-function wds_bp_before_group_forum_post_new(){
-	global $bp_moderate;
-	if ( $bp_moderate ) ob_start();
-}
-add_action('bp_after_group_forum_post_new','wds_bp_after_group_forum_post_new', 0);
-function wds_bp_after_group_forum_post_new(){
-	global $bp_moderate;
-	if ( $bp_moderate ) ob_end_clean();
-}
-
-/**
- * Disables forums reply form
- */
-add_action('groups_forum_new_reply_before','wds_groups_forum_new_reply_before', 0);
-function wds_groups_forum_new_reply_before(){
-	global $bp_moderate;
-	if ( $bp_moderate ) ob_start();
-}
-add_action('groups_forum_new_reply_after','wds_groups_forum_new_reply_after', 0);
-function wds_groups_forum_new_reply_after(){
-	global $bp_moderate;
-	if ( $bp_moderate ) ob_end_clean();
-}
-
-/**
- * Disables forums new topic form (forums page)
- */
-add_action('groups_forum_new_topic_before','wds_groups_forum_new_topic_before', 0);
-function wds_groups_forum_new_topic_before(){
-	global $bp_moderate;
-	if ( $bp_moderate ) ob_start();
-}
-add_action('groups_forum_new_topic_after','wds_groups_forum_new_topic_after', 0);
-function wds_groups_forum_new_topic_after(){
-	global $bp_moderate;
-	if ( $bp_moderate ) ob_end_clean();
-}
-
-
-/**
- * Hide any activity created by blocked user (if they somehow get around hidden form)
- */
-add_action( 'bp_actions', 'wds_bp_registration_options_bp_actions', 50 );
-function wds_bp_registration_options_bp_actions(){
-	global $wpdb, $user_ID, $bp_moderate, $bp;
-	if ( $bp_moderate ) {
-		$sql = 'UPDATE ' . $wpdb->base_prefix . 'bp_activity SET hide_sitewide = 1 WHERE user_id = %d';
-		$wpdb->query( $wpdb->prepare( $sql, $user_ID ) );
-	}
-}
-
-
-/**
- * Show a custom message on the activation page and on users profile header.
- */
-add_filter( 'bp_after_activate_content', 'wds_bp_registration_options_bp_after_activate_content' );
-add_filter( 'bp_before_member_header', 'wds_bp_registration_options_bp_after_activate_content' );
-function wds_bp_registration_options_bp_after_activate_content(){
-	global $bp_moderate, $user_ID, $blog_id;
-	if ( is_multisite() ) {
-		$blogid = $blog_id;
-		switch_to_blog(1);
-	}
-	if ( $bp_moderate && isset( $_GET['key'] ) || $bp_moderate && $user_ID > 0 ) {
+	if ( isset( $_GET['key'] ) || bp_registration_get_moderation_status( $user ) ) {
 		$activate_message = stripslashes( get_option( 'bprwg_activate_message' ) );
 		echo '<div id="message" class="error"><p>' . $activate_message . '</p></div>';
 	}
-	if ( is_multisite() ) {
-		switch_to_blog( $blogid );
-	}
 }
-
+add_filter( 'bp_after_activate_content', 'bp_registration_options_bp_after_activate_content' );
+add_filter( 'bp_before_member_header', 'bp_registration_options_bp_after_activate_content' );
 
 /**
- * Custom activation functionality
+ * Set up our user upon activation, email appropriate people
+ *
+ * @since  unknown
+ *
+ * @param  integer  $user_id User ID
  */
-add_action( 'bp_core_activate_account', 'wds_bp_registration_options_bp_core_activate_account');
-function wds_bp_registration_options_bp_core_activate_account($user_id){
-	global $wpdb, $bp_moderate;
-	if ( $bp_moderate &&  $user_id > 0 ) {
-		if ( isset( $_GET['key'] ) ) {
-			//Hide user created by new user on activation.
-			$sql = 'UPDATE ' . $wpdb->base_prefix . 'users SET user_status = 69 WHERE ID = %d';
-			$wpdb->query( $wpdb->prepare( $sql, $user_id ) );
+function bp_registration_options_bp_core_activate_account( $user_id ) {
 
-			//Hide activity created by new user
-			$sql = 'UPDATE ' . $wpdb->base_prefix . 'bp_activity SET hide_sitewide = 1 WHERE user_id = %d';
-			$wpdb->query( $wpdb->prepare( $sql, $user_id ) );
+	$private_network = get_option( 'bprwg_privacy_network' );
+
+	if ( $private_network && $user_id > 0 ) {
+		if ( isset( $_GET['key'] ) ) {
+
+			//Somehow the WP-FB-AutoConnect plugin uses $_GET['key'] as well for user IDs. Let's check if the value returns a user.
+			/*$is_user = get_userdata( $_GET['key'] );
+
+			if ( !$is_user ) {
+				return;
+			}*/
+
+			bp_registration_set_moderation_status( $user_id );
+
+			$user = get_userdata( $user_id );
+			$admin_email = get_bloginfo( 'admin_email' );
+
+			//add HTML capabilities temporarily
+			add_filter( 'wp_mail_content_type', 'bp_registration_options_set_content_type' );
+
+			//If their IP or email is blocked, don't proceed and exit silently.
+			//$blockedIPs = get_option( 'bprwg_blocked_ips', array() );
+			//$blockedemails = get_option( 'bprwg_blocked_emails', array() );
+
+			//Warning: in_array() expects parameter 2 to be array, boolean given in /Applications/XAMPP/xamppfiles/htdocs/wp/buddypress/wp-content/plugins/BuddyPress-Registration-Options/includes/core.php on line 50
+			/*if ( in_array( $_SERVER['REMOTE_ADDR'], $blockedIPs ) || in_array( $user->user_email, $blockedemails ) ) {
+				$message = apply_filters( 'bprwg_banned_user_admin_email', __( 'Someone with a banned IP address or email just tried to register with your site', 'bp-registration-options' ) );
+
+				wp_mail( $admin_email, __( 'Banned member registration attempt', 'bp-registration-options' ), $message );
+
+				//Delete their account thus far.
+				if ( is_multisite() ) {
+					wpmu_delete_user( $user_id );
+				}
+				wp_delete_user( $user_id );
+
+				return;
+			}*/
+
+			//Set them as in moderation.
+			bp_registration_set_moderation_status( $user_id );
 
 			//save user ip address
-			update_user_meta( $user_id, 'bprwg_ip_address', $_SERVER['REMOTE_ADDR'] );
+			update_user_meta( $user_id, '_bprwg_ip_address', $_SERVER['REMOTE_ADDR'] );
 
-			//email admin about new member request
-			$user = get_userdata( $user_id );
-			$user_name = $user->user_login;
-			$user_email = $user->user_email;
-			$mod_email = $user_name . ' ( ' . $user_email . ' ) ' . __( 'would like to become a member of your website, to accept or reject their request please go to ', 'bp-registration-options') . admin_url( '/admin.php?page=bp_registration_options_member_requests' );
-			$admin_email = get_bloginfo( 'admin_email' );
-			wp_mail( $admin_email, __( 'New Member Request', 'bp-registration-options' ), $mod_email );
+			bp_registration_options_send_admin_email(
+				array(
+					'user_login' => $user->data->user_login,
+					'user_email' => $user->data->user_email,
+					'message'    => sprintf(
+						__( '%s ( %s ) would like to become a member of your website. To accept or reject their request, please go to <a href="%s">%s</a>.', 'bp-registration-options' ),
+						$user->data->user_nicename,
+						$user->data->user_email,
+						admin_url( '/admin.php?page=bp_registration_options_member_requests' ),
+						admin_url( '/admin.php?page=bp_registration_options_member_requests' )
+					)
+				)
+			);
 		}
 	}
 }
+add_action( 'bp_core_activate_account', 'bp_registration_options_bp_core_activate_account');
 
-add_action( 'bp_pre_user_query_construct', 'bp_registration_hide_pending_members' );
 /**
  * Hide members, who haven't been approved yet, on the frontend listings.
- * @param  object $args arguments that BuddyPress will use to query for members
- * @return object       amended arguments with IDs to exclude.
- * @since  4.1
+ *
+ * @since  4.1.0
+ *
+ * @param  object  $args Arguments that BuddyPress will use to query for members
+ *
+ * @return object        Amended arguments with IDs to exclude.
  */
 function bp_registration_hide_pending_members( $args ) {
 	global $wpdb;
 
 	$ids = array();
-	$sql = "SELECT ID FROM " . $wpdb->base_prefix . "users WHERE user_status IN (2,69)";
-	$rs = $wpdb->get_results( $wpdb->prepare( $sql, '' ), ARRAY_N );
+
+	$sql = "SELECT user_id FROM " . $wpdb->prefix . "usermeta WHERE meta_key = '_bprwg_is_moderated' AND meta_value = %s";
+	$rs = $wpdb->get_results( $wpdb->prepare( $sql, 'true' ), ARRAY_N );
 	//Grab the actual IDs
 	foreach( $rs as $key => $value) {
 		$ids[] = $value[0];
 	}
 
-	if ( $ids )
+	if ( $ids ) {
 		$args->query_vars['exclude'] = $ids;
+	}
 
 	return $args;
+
+}
+add_action( 'bp_pre_user_query_construct', 'bp_registration_hide_pending_members' );
+
+/**
+ * Check if current user should be denied access or not
+ *
+ * @since  4.2.0
+ */
+function bp_registration_deny_access() {
+
+	$user = new WP_User( get_current_user_id() );
+	$private_network = get_option( 'bprwg_privacy_network' );
+
+	if ( bp_registration_buddypress_allowed_areas() || bp_registration_bbpress_allowed_areas() || !$private_network ) {
+		return;
+	}
+
+	//Not logged in user.
+	if ( $user->ID == 0 ) {
+		if ( function_exists( 'is_buddypress' ) && is_buddypress() ) {
+			wp_redirect( get_bloginfo( 'url' ) );
+			exit;
+		}
+		if ( function_exists( 'is_bbpress' ) && is_bbpress() ) {
+			wp_redirect( get_bloginfo( 'url' ) );
+			exit;
+		}
+	}
+
+	//Logged in user but moderated.
+	if ( $user->ID > 0 ) {
+		if ( bp_registration_get_moderation_status( $user->ID ) ) {
+			if ( function_exists( 'is_buddypress' ) && is_buddypress() ) {
+				wp_redirect( bp_core_get_user_domain( $user->ID ) );
+				exit;
+			}
+			if ( function_exists( 'is_bbpress' ) && is_bbpress() ) {
+				wp_redirect( bbp_get_user_profile_url( $user->ID ) );
+				exit;
+			}
+		}
+	}
+}
+add_action( 'template_redirect', 'bp_registration_deny_access' );
+
+/**
+ * Check if on an allowed bbPress component
+ *
+ * @since  4.2.0
+ *
+ * @return boolean  true if an allowed component, false otherwise
+ */
+function bp_registration_bbpress_allowed_areas() {
+
+	if ( !function_exists( 'bbp_is_single_user_edit' ) ) { return false; }
+
+	if ( bbp_is_single_user_edit() || bbp_is_single_user() || bbp_is_user_home() || bbp_is_user_home_edit() ) {
+		return true;
+	}
+	return false;
+
+}
+
+/**
+ * Check if on an allowed BuddyPress component
+ *
+ * @since  4.2.0
+ *
+ * @return boolean  true if an allowed component, false otherwise
+ */
+function bp_registration_buddypress_allowed_areas() {
+
+	if ( !function_exists( 'bp_is_my_profile' ) ) { return false; }
+
+	global $bp;
+
+	if ( bp_is_my_profile() || bp_is_user_profile() || bp_is_user_profile_edit() || $bp->current_component == 'register' || $bp->current_component == 'activate' ) {
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * Check our moderation status and return boolean values based on that
+ *
+ * @since  4.2.0
+ *
+ * @param  integer  $user_id User ID to check
+ *
+ * @return boolean           Whether or not they're in moderation status.
+ */
+function bp_registration_get_moderation_status( $user_id ) {
+	$moderated = get_user_meta( $user_id, '_bprwg_is_moderated', true );
+
+	if ( 'true' == $moderated ) {
+		return true;
+	}
+	return false;
+}
+
+/**
+ * Update our moderation status for a user
+ *
+ * @since  4.2.0
+ *
+ * @param  integer  $user_id User ID to update
+ * @param  string  $status   Value to update the user meta to
+ *
+ * @return integer           meta row ID that got updated.
+ */
+function bp_registration_set_moderation_status( $user_id = 0, $status = 'true' ) {
+	return update_user_meta( absint( $user_id ), '_bprwg_is_moderated', $status );
+}
+
+/**
+ * Send an email to the administrator email upon new user registration
+ *
+ * @since  4.2.0
+ *
+ * @param  array   $args Array of arguments for the email
+ */
+function bp_registration_options_send_admin_email( $args = array() ) {
+
+	$args = wp_parse_args( $args, array(
+		'user_login' => '',
+		'user_email' => '',
+		'message'    => '',
+	) );
+
+	$admin_email = get_bloginfo( 'admin_email' );
+
+	//add our filter and provide the user name and user email for them to utilize.
+	$mod_email = apply_filters( 'bprwg_new_member_request_admin_email_message', $args['message'], $args['user_login'], $args['user_email'] );
+
+	wp_mail( $admin_email, __( 'New Member Request', 'bp-registration-options' ), $mod_email );
+
+	remove_filter( 'wp_mail_content_type', 'bp_registration_options_set_content_type' );
 }
