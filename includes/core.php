@@ -14,10 +14,13 @@
  */
 function bp_registration_options_bp_after_activate_content() {
 	$user = get_current_user_id();
+	$moderate = get_option( 'bprwg_moderate' );
 
 	if ( isset( $_GET['key'] ) || bp_registration_get_moderation_status( $user ) ) {
-		$activate_message = stripslashes( get_option( 'bprwg_activate_message' ) );
-		echo '<div id="message" class="error"><p>' . $activate_message . '</p></div>';
+		if ( $moderate ) {
+			$activate_message = stripslashes( get_option( 'bprwg_activate_message' ) );
+			echo '<div id="message" class="error"><p>' . $activate_message . '</p></div>';
+		}
 	}
 }
 add_filter( 'bp_after_activate_content', 'bp_registration_options_bp_after_activate_content' );
@@ -32,9 +35,9 @@ add_filter( 'bp_before_member_header', 'bp_registration_options_bp_after_activat
  */
 function bp_registration_options_bp_core_activate_account( $user_id ) {
 
-	$private_network = get_option( 'bprwg_privacy_network' );
+	$moderate = get_option( 'bprwg_moderate' );
 
-	if ( $private_network && $user_id > 0 ) {
+	if ( $moderate && $user_id > 0 ) {
 		if ( isset( $_GET['key'] ) ) {
 
 			//Somehow the WP-FB-AutoConnect plugin uses $_GET['key'] as well for user IDs. Let's check if the value returns a user.
@@ -91,6 +94,7 @@ function bp_registration_options_bp_core_activate_account( $user_id ) {
 				)
 			);
 		}
+	bp_registration_options_delete_user_count_transient();
 	}
 }
 add_action( 'bp_core_activate_account', 'bp_registration_options_bp_core_activate_account');
@@ -106,6 +110,12 @@ add_action( 'bp_core_activate_account', 'bp_registration_options_bp_core_activat
  */
 function bp_registration_hide_pending_members( $args ) {
 	global $wpdb;
+
+	$private_network = get_option( 'bprwg_privacy_network' );
+
+	if ( empty( $private_network ) || ! $private_network ) {
+		return;
+	}
 
 	$ids = array();
 
@@ -126,6 +136,49 @@ function bp_registration_hide_pending_members( $args ) {
 add_action( 'bp_pre_user_query_construct', 'bp_registration_hide_pending_members' );
 
 /**
+ * Hide BP posting UI components for private networks.
+ *
+ * @since 4.2.1
+ */
+function bp_registration_hide_ui() {
+
+	$user = get_current_user_id();
+	$private_network = get_option( 'bprwg_privacy_network' );
+	$moderate = get_option( 'bprwg_moderate' );
+
+	if ( empty( $private_network ) || ! $private_network ) {
+		return;
+	}
+
+	if ( empty( $moderate ) || ! $moderate ) {
+		return;
+	}
+
+	if ( ! bp_registration_get_moderation_status( $user ) ) {
+		return;
+	}
+
+	add_filter( 'bp_activity_can_favorite', '__return_false' );
+	//hide friend buttons
+	add_filter( 'bp_get_add_friend_button', '__return_false' );
+	add_filter( 'bp_get_send_public_message_button', '__return_false' );
+	add_filter( 'bp_get_send_message_button', '__return_false' );
+
+	//hide group buttons
+	add_filter( 'bp_user_can_create_groups', '__return_false' );
+	add_filter( 'bp_get_group_join_button', '__return_false' );
+
+	//hide activity comment buttons
+	add_filter( 'bp_activity_can_comment_reply', '__return_false' );
+	add_filter( 'bp_activity_can_comment', '__return_false' );
+	add_filter( 'bp_acomment_name', '__return_false' );
+
+	add_filter( 'bbp_current_user_can_access_create_reply_form', '__return_false' );
+	add_filter( 'bbp_current_user_can_access_create_topic_form', '__return_false' );
+}
+add_action( 'bp_ready', 'bp_registration_hide_ui' );
+
+/**
  * Check if current user should be denied access or not
  *
  * @since  4.2.0
@@ -133,9 +186,9 @@ add_action( 'bp_pre_user_query_construct', 'bp_registration_hide_pending_members
 function bp_registration_deny_access() {
 
 	$user = new WP_User( get_current_user_id() );
-	$private_network = get_option( 'bprwg_privacy_network' );
+	$moderate = get_option( 'bprwg_privacy_network' );
 
-	if ( bp_registration_buddypress_allowed_areas() || bp_registration_bbpress_allowed_areas() || !$private_network ) {
+	if ( bp_registration_buddypress_allowed_areas() || bp_registration_bbpress_allowed_areas() || ! $moderate ) {
 		return;
 	}
 
@@ -234,6 +287,13 @@ function bp_registration_get_moderation_status( $user_id ) {
  * @return integer           meta row ID that got updated.
  */
 function bp_registration_set_moderation_status( $user_id = 0, $status = 'true' ) {
+	$user = get_userdata( $user_id );
+
+	if ( ! $user ) {
+		return false;
+	}
+
+	delete_user_meta( $user_id, '_bprwg_is_moderated' );
 	return update_user_meta( absint( $user_id ), '_bprwg_is_moderated', $status );
 }
 
