@@ -173,6 +173,7 @@ function bp_registration_hide_ui() {
 
 	add_filter( 'bbp_current_user_can_access_create_reply_form', '__return_false' );
 	add_filter( 'bbp_current_user_can_access_create_topic_form', '__return_false' );
+
 }
 add_action( 'bp_ready', 'bp_registration_hide_ui' );
 
@@ -199,6 +200,7 @@ function bp_registration_deny_access() {
 		//Not logged in user.
 		if ( $user->ID == 0 ) {
 			if ( function_exists( 'is_buddypress' ) && is_buddypress() ) {
+
 				wp_redirect( get_bloginfo( 'url' ) );
 				exit;
 			}
@@ -326,3 +328,15 @@ function bp_registration_options_send_admin_email( $args = array() ) {
 
 	remove_filter( 'wp_mail_content_type', 'bp_registration_options_set_content_type' );
 }
+
+function bp_registration_options_remove_compose_message() {
+	if ( true === bp_registration_get_moderation_status( get_current_user_id() ) ) {
+		bp_core_remove_subnav_item( 'messages', 'compose' );
+	}
+}
+add_action( 'bp_setup_nav', 'bp_registration_options_remove_compose_message' );
+
+function bp_registration_options_remove_moderated_count( $count ) {
+	return ( $count - absint( bp_registration_get_pending_user_count() ) );
+}
+add_filter( 'bp_get_total_member_count', 'bp_registration_options_remove_moderated_count' );
